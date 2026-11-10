@@ -33,3 +33,20 @@ export const ACTIVITY_TYPES = [
   { key: "play", name: "Play / rest", place: "house" },
   { key: "travel", name: "Commute / travel", place: null },
 ] as const;
+
+export const CATEGORIES = [
+  { key: "groceries", name: "Groceries", kind: "expense" },
+  { key: "dining_out", name: "Dining out", kind: "expense" },
+  { key: "transport", name: "Transportation / gas", kind: "expense" },
+  { key: "utilities", name: "Utilities (Meralco, water, internet)", kind: "expense" },
+  { key: "tuition", name: "Tuition & school", kind: "expense" },
+  { key: "lessons", name: "Lessons (piano)", kind: "expense" },
+  { key: "tithes", name: "Tithes & offerings", kind: "expense" },
+  { key: "household", name: "Household", kind: "expense" },
+  { key: "health", name: "Health", kind: "expense" },
+  { key: "shopping", name: "Shopping", kind: "expense" },
+  { key: "allowance", name: "Allowance", kind: "expense" },
+  { key: "other", name: "Others", kind: "expense" },
+  { key: "salary", name: "Salary", kind: "income" },
+  { key: "other_income", name: "Other income", kind: "income" },
+] as const;

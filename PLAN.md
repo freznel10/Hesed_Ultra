@@ -185,7 +185,7 @@ No Netlify account is needed for local use; `netlify-cli` is a dev dependency. T
 | Phase | Deliverable | Done when |
 |---|---|---|
 | **0. Scaffold** ✅ | Vite+React+TS, netlify.toml, Drizzle + PGlite, lint/test (Vitest) | `npm run dev` shows a page and `/api/health` answers |
-| **1. Core + data** | `db/schema.ts`, migrations, seed, `core/*` with Zod + audit log, unit tests | Core functions are tested for activities, transactions, budgets, and goals |
+| **1. Core + data** ✅ | `db/schema.ts`, migrations, seed, `core/*` with Zod + audit log, unit tests | Core functions are tested for activities, transactions, budgets, and goals |
 | **2. REST API + basic UI** | CRUD screens for activities, transactions, budgets, and goals (no pixels yet) | The family can log a full day by hand |
 | **3. MCP server** | `mcp/tools.ts`, stdio entry, `/mcp` function, token auth | Claude Code can log an expense and it appears in the app |
 | **4. Pixel scene v1** | Sprite loader, map, member walking, activity animations, time scrubber, using your assets | Today's entries play back as a scene |

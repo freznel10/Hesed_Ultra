@@ -30,7 +30,7 @@ Data is stored in `.data/pglite` inside the project folder (not committed to git
 ## Layout
 
 - `src/` — React app; `src/scene/` draws the town on a canvas
-- `core/` — shared logic (money helpers, family/places/activities seed lists)
+- `core/` — shared logic: input rules (`schemas.ts`), activities, spending, budgets, savings, and the change log (`audit.ts`)
 - `db/` — PGlite database, migrations, seed
 - `netlify/functions/api.ts` — the API (`/api/health`, `/api/members`, `/api/places`, `/api/activity-types`)
 - `assets/` — source art; `tools/` — art scripts

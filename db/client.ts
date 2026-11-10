@@ -1,21 +1,20 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
+import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { MIGRATIONS } from "./migrations";
 import { seed } from "./seed-data";
 import * as schema from "./schema";
 
+export type Db = PgliteDatabase<typeof schema>;
+
 /**
- * Local database: PGlite (Postgres compiled to WebAssembly), stored on disk.
+ * Open a database, apply pending migrations and seed the reference data.
+ * With a folder it is stored on disk; with no argument it lives in memory (used by tests).
  * Production (Phase 6) will switch to Netlify DB / Neon when NETLIFY_DATABASE_URL is set.
  */
-const dataDir = resolve(process.env.PGLITE_DIR ?? ".data/pglite");
-
-let ready: Promise<ReturnType<typeof drizzle<typeof schema>>> | null = null;
-
-async function open() {
-  mkdirSync(dataDir, { recursive: true });
+export async function openDb(dataDir?: string): Promise<Db> {
+  if (dataDir) mkdirSync(dataDir, { recursive: true });
   const pg = new PGlite(dataDir);
   await pg.exec(`CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT now())`);
   const done = new Set((await pg.query<{ id: string }>(`SELECT id FROM _migrations`)).rows.map((r) => r.id));
@@ -31,8 +30,11 @@ async function open() {
   return db;
 }
 
-export function getDb() {
-  ready ??= open();
+let ready: Promise<Db> | null = null;
+
+/** The app's local database, opened once per process. */
+export function getDb(): Promise<Db> {
+  ready ??= openDb(resolve(process.env.PGLITE_DIR ?? ".data/pglite"));
   return ready;
 }
 
