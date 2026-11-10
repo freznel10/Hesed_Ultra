@@ -239,7 +239,30 @@ More places can be added in Settings without code changes.
 
 Each member logs in with their own PIN or passphrase. Kids' accounts can be limited further later if needed. Agent tokens are created by a parent and can act "on behalf of" a member so the audit log stays accurate.
 
-## 11. Open questions
+## 11. Character art (from the first sprite sheets)
 
-1. **Assets:** what's in `T7 Shield/Projects/Hesed_Ultra` (sprite size, PNG vs Aseprite, one sprite per family member?), and are any of them third-party packs with licences to respect? This needs either the files pushed to the repo or a session running on that computer.
-2. **Ages:** roughly how old are Ellie and Rafa? This affects how simple the kids' screens should be.
+Four characters, each drawn front-facing, with front/back/side walk poses and close-up portraits with expressions:
+
+| Member | Look |
+|---|---|
+| Freznel | Black hair, glasses, black polo, grey trousers |
+| Diane | Long brown hair, glasses, black blazer and trousers |
+| Ellie | Long black hair, glasses, blue headphones, pink hoodie, wide jeans, white sneakers |
+| Rafa | Spiky black hair, yellow-and-green striped tee, jeans |
+
+Ellie and Rafa are 10 and 11, so the kids' screens stay simple but don't need to be toddler-level: big buttons, icons plus words, and a quick "what did you do today?" flow.
+
+**Preparing the art for the game.** The current images are 2000×1116 JPG previews on a white background, with the art scaled up by a non-whole factor. Before they go in the game they need:
+
+1. **Transparent PNG** (JPG adds blurry halos around every pixel).
+2. **A true pixel grid:** shrink each character back to its native size (it looks like roughly 32×64 for adults and smaller for the kids) with nearest-neighbour sampling, then tidy stray pixels.
+3. **One sprite sheet per member** with fixed-size frames, e.g. rows = down / up / left / right, columns = walk frames 1–4. Right can be the mirrored left.
+4. **Extra rows later** for activities: sit, eat, play piano, sweep, worship, type.
+5. **Portraits** as a separate 48×48 sheet: neutral, happy, laughing, surprised, tired.
+
+Placeholder rectangles in each member's colour are used until the cleaned sheets exist, so the code isn't blocked on art.
+
+## 12. Open questions
+
+1. Are the originals on the T7 Shield higher quality or layered (Aseprite/PSD)? If so, use those instead of the JPG previews.
+2. Art for places (house, church, school, mall, office): already made, or still to do?
