@@ -91,6 +91,14 @@ export async function listTransactions(db: Db, date: string): Promise<Transactio
   return rows.map(shape);
 }
 
+export async function listMonthTransactions(db: Db, month: string): Promise<Transaction[]> {
+  const { from, to } = monthRange(month);
+  const rows = await selectTransactions(db)
+    .where(and(gte(schema.transactions.date, from), lt(schema.transactions.date, to)))
+    .orderBy(asc(schema.transactions.date), asc(schema.transactions.id));
+  return rows.map(shape);
+}
+
 // ---------------------------------------------------------------- budgets
 
 /** Set (or change) the limit for one category in one month. A limit of 0 removes the budget. */
@@ -116,7 +124,7 @@ export async function setBudget(ctx: Ctx, raw: BudgetInput) {
   });
 }
 
-function monthRange(month: string) {
+export function monthRange(month: string) {
   const [y, m] = Month.parse(month).split("-").map(Number);
   const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   return { from: `${month}-01`, to: `${next}-01` };

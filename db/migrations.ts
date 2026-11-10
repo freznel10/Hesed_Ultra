@@ -110,4 +110,21 @@ export const MIGRATIONS: { id: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: "0003_logins_and_tokens",
+    sql: `
+      ALTER TABLE members ADD COLUMN pin_hash TEXT;
+      ALTER TABLE members ADD COLUMN pin_fails INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE members ADD COLUMN pin_locked_until TIMESTAMPTZ;
+      CREATE TABLE api_tokens (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        token_hash TEXT UNIQUE NOT NULL,
+        member_id INTEGER NOT NULL REFERENCES members(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_used_at TIMESTAMPTZ,
+        revoked BOOLEAN NOT NULL DEFAULT FALSE
+      );
+    `,
+  },
 ];

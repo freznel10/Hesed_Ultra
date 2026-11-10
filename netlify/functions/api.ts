@@ -1,24 +1,120 @@
 import type { Config } from "@netlify/functions";
-import { getDb, schema } from "../../db/client";
+import { ZodError } from "zod";
+import { checkPin, createSession, createToken, listTokens, readSession, revokeToken, setPin } from "../../core/auth";
+import { InputError, lookup } from "../../core/context";
+import { can, Forbidden, type User } from "../../core/permissions";
+import { service, type Service } from "../../core/service";
+import { getDb, type Db } from "../../db/client";
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+/**
+ * The web app's API. Thin by design: work out who is asking, then call core/service.
+ *
+ * Who is asking:
+ *  - Local use (no SESSION_SECRET set): the app says who is using it in the x-member
+ *    header (the "Who's here?" picker). No PIN needed on your own machine.
+ *  - Online (SESSION_SECRET set): a signed cookie from logging in with a PIN.
+ */
+const SECRET = process.env.SESSION_SECRET;
+const COOKIE = "hesed_session";
+
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
+
+class Unauthorized extends Error {}
+
+async function whoIs(req: Request, db: Db): Promise<User | null> {
+  let key: string | null;
+  if (SECRET) {
+    const cookie = req.headers.get("cookie")?.split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`));
+    key = readSession(cookie?.slice(COOKIE.length + 1), SECRET);
+  } else {
+    key = req.headers.get("x-member");
+  }
+  if (!key) return null;
+  const member = await lookup.member(db, key).catch(() => null);
+  return member?.active ? { key: member.key, role: member.role } : null;
+}
+
+type Handler = (c: { svc: Service; db: Db; body: any; params: string[]; user: User }) => unknown;
+const num = (s: string) => {
+  const n = Number(s);
+  if (!Number.isInteger(n)) throw new InputError("Bad id");
+  return n;
+};
+
+const routes: [method: string, pattern: RegExp, handler: Handler][] = [
+  ["GET", /^\/reference$/, ({ svc }) => svc.reference()],
+  ["GET", /^\/day\/([\d-]+)$/, ({ svc, params }) => svc.day(params[0])],
+  ["GET", /^\/calendar\/([\d-]+)$/, ({ svc, params }) => svc.calendar(params[0])],
+  ["POST", /^\/activities$/, ({ svc, body }) => svc.logActivity(body)],
+  ["PUT", /^\/activities\/(\d+)$/, ({ svc, body, params }) => svc.updateActivity(num(params[0]), body)],
+  ["DELETE", /^\/activities\/(\d+)$/, ({ svc, params }) => svc.deleteActivity(num(params[0]))],
+  ["POST", /^\/transactions$/, ({ svc, body }) => svc.logTransaction(body)],
+  ["PUT", /^\/transactions\/(\d+)$/, ({ svc, body, params }) => svc.updateTransaction(num(params[0]), body)],
+  ["DELETE", /^\/transactions\/(\d+)$/, ({ svc, params }) => svc.deleteTransaction(num(params[0]))],
+  ["GET", /^\/month\/([\d-]+)$/, async ({ svc, params }) => ({
+    summary: svc.user.role === "parent" ? await svc.monthSummary(params[0]) : null,
+    transactions: await svc.monthTransactions(params[0]),
+  })],
+  ["PUT", /^\/budgets$/, ({ svc, body }) => svc.setBudget(body)],
+  ["GET", /^\/goals$/, ({ svc }) => svc.goals()],
+  ["POST", /^\/goals$/, ({ svc, body }) => svc.createGoal(body)],
+  ["POST", /^\/savings$/, ({ svc, body }) => svc.addSavingsEntry(body)],
+  ["GET", /^\/changes$/, ({ svc }) => svc.changes(100)],
+  ["PUT", /^\/members\/([\w-]+)\/pin$/, async ({ db, user, body, params }) => {
+    if (params[0] !== user.key) can.parentOnly(user, "set someone else's PIN");
+    await setPin(db, params[0], String(body?.pin ?? ""));
+    return { ok: true };
+  }],
+  ["GET", /^\/tokens$/, ({ db, user }) => (can.parentOnly(user, "manage agent tokens"), listTokens(db))],
+  ["POST", /^\/tokens$/, ({ db, user, body }) => (can.parentOnly(user, "manage agent tokens"), createToken(db, String(body?.name ?? ""), String(body?.member ?? user.key)))],
+  ["DELETE", /^\/tokens\/(\d+)$/, async ({ db, user, params }) => {
+    can.parentOnly(user, "manage agent tokens");
+    await revokeToken(db, num(params[0]));
+    return { ok: true };
+  }],
+];
 
 export default async (req: Request) => {
   const path = new URL(req.url).pathname.replace(/^\/api/, "") || "/";
   try {
     const db = await getDb();
-    if (path === "/health") {
-      const members = await db.select().from(schema.members);
-      return json({ ok: true, db: "pglite", members: members.length, time: new Date().toISOString() });
+    const body = req.method === "GET" || req.method === "DELETE" ? undefined : await req.json().catch(() => ({}));
+
+    // --- endpoints that work before signing in
+    if (path === "/health") return json({ ok: true, time: new Date().toISOString() });
+    if (path === "/session" && req.method === "GET") {
+      const user = await whoIs(req, db);
+      const { members } = await service(db, { key: "", role: "child" }, "app").reference();
+      return json({ loginRequired: Boolean(SECRET), user, members });
     }
-    if (path === "/members") return json(await db.select().from(schema.members));
-    if (path === "/places") return json(await db.select().from(schema.places));
-    if (path === "/activity-types") return json(await db.select().from(schema.activityTypes));
-    return json({ error: "not found" }, 404);
+    if (path === "/login" && req.method === "POST") {
+      if (!SECRET) throw new InputError("Logging in is only needed online");
+      const user = await checkPin(db, String(body?.member ?? ""), String(body?.pin ?? ""));
+      const cookie = `${COOKIE}=${createSession(user.key, SECRET)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 86400}`;
+      return json({ user }, 200, { "set-cookie": cookie });
+    }
+    if (path === "/logout" && req.method === "POST") {
+      return json({ ok: true }, 200, { "set-cookie": `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0` });
+    }
+
+    // --- everything else needs to know who is asking
+    const user = await whoIs(req, db);
+    if (!user) throw new Unauthorized();
+    for (const [method, pattern, handler] of routes) {
+      const m = req.method === method && path.match(pattern);
+      if (m) return json((await handler({ svc: service(db, user, "app"), db, body, params: m.slice(1), user })) ?? { ok: true });
+    }
+    return json({ error: "Not found" }, 404);
   } catch (err) {
+    if (err instanceof Unauthorized) return json({ error: "Please sign in" }, 401);
+    if (err instanceof Forbidden) return json({ error: err.message }, 403);
+    if (err instanceof InputError) return json({ error: err.message }, 400);
+    if (err instanceof ZodError) {
+      return json({ error: err.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ") }, 400);
+    }
     console.error(err);
-    return json({ ok: false, error: String(err) }, 500);
+    return json({ error: "Something went wrong on the server" }, 500);
   }
 };
 

@@ -10,6 +10,9 @@ export const members = pgTable("members", {
   color: text("color").notNull(),
   sprite: text("sprite"),
   active: boolean("active").notNull().default(true),
+  pinHash: text("pin_hash"),
+  pinFails: integer("pin_fails").notNull().default(0),
+  pinLockedUntil: timestamp("pin_locked_until", { withTimezone: true, mode: "date" }),
 });
 
 export const places = pgTable("places", {
@@ -109,4 +112,14 @@ export const auditLog = pgTable("audit_log", {
   action: text("action", { enum: ["create", "update", "delete"] }).notNull(),
   before: jsonb("before"),
   after: jsonb("after"),
+});
+
+export const apiTokens = pgTable("api_tokens", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  tokenHash: text("token_hash").notNull().unique(),
+  memberId: integer("member_id").notNull().references(() => members.id),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "string" }),
+  revoked: boolean("revoked").notNull().default(false),
 });

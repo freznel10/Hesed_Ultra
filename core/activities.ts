@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
 import type { Db } from "../db/client";
 import * as schema from "../db/schema";
 import { record } from "./audit";
@@ -97,5 +97,14 @@ export async function listActivities(db: Db, date: string): Promise<Activity[]> 
     .select({ id: schema.activities.id })
     .from(schema.activities)
     .where(eq(schema.activities.date, Day.parse(date)));
+  return load(db, ids.map((r) => r.id));
+}
+
+/** Every activity between two dates (from inclusive, to exclusive). Used by the calendar. */
+export async function listActivitiesBetween(db: Db, from: string, to: string): Promise<Activity[]> {
+  const ids = await db
+    .select({ id: schema.activities.id })
+    .from(schema.activities)
+    .where(and(gte(schema.activities.date, Day.parse(from)), lt(schema.activities.date, Day.parse(to))));
   return load(db, ids.map((r) => r.id));
 }
