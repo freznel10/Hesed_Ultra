@@ -66,6 +66,16 @@ describe("PINs, sessions and agent tokens", () => {
     expect((await checkPin(db, "ellie", "1234", later)).key).toBe("ellie");
   });
 
+  it("lets a parent without a PIN in with the setup code, once", async () => {
+    const code = "first-time-code";
+    expect((await checkPin(db, "diane", code, new Date(), code)).key).toBe("diane");
+    await expect(checkPin(db, "diane", "wrong-code", new Date(), code)).rejects.toThrow(/no PIN/);
+    await expect(checkPin(db, "ellie", code, new Date(), code)).rejects.toThrow(/no PIN/); // children cannot use it
+    await expect(checkPin(db, "diane", "short", new Date(), "short")).rejects.toThrow(/no PIN/); // too-short codes are ignored
+    await setPin(db, "diane", "4821");
+    await expect(checkPin(db, "diane", code, new Date(), code)).rejects.toThrow("Wrong PIN");
+  });
+
   it("signs sessions and rejects tampered or expired ones", () => {
     const s = createSession("diane", "secret", 1000);
     expect(readSession(s, "secret", 2000)).toBe("diane");

@@ -53,9 +53,9 @@ export default function Settings({ ctx }: { ctx: AppContext }) {
         <>
           <div className="panel">
             <h3>Claude and other agents</h3>
-            <p>On this computer, connect Claude Code with:</p>
-            <pre>claude mcp add hesed -- npx tsx mcp/stdio.ts</pre>
-            <p>Once the app is online, agents connect to <code>/mcp</code> with a token. Each token acts as you, and every change it makes is listed below under its name.</p>
+            <p>While the app is running on this computer, connect Claude Code with:</p>
+            <pre>claude mcp add --transport http hesed {location.origin}/mcp</pre>
+            <p>Once the app is online, agents must also send a token: add <code>--header "Authorization: Bearer YOUR_TOKEN"</code>. Each token acts as you, and every change it makes is listed below under its name.</p>
             <form className="row" onSubmit={addToken}>
               <label>New token name <input value={tokenName} placeholder="e.g. claude" onChange={(e) => setTokenName(e.target.value)} /></label>
               <button className="primary">Create token</button>

@@ -31,9 +31,23 @@ export async function setPin(db: Db, memberKey: string, pin: string) {
     .where(eq(schema.members.id, member.id));
 }
 
-/** Check a PIN. After 5 wrong tries the member is locked out for 5 minutes. */
-export async function checkPin(db: Db, memberKey: string, pin: string, now = new Date()): Promise<User> {
+const same = (a: string, b: string) => {
+  const x = createHash("sha256").update(a).digest();
+  const y = createHash("sha256").update(b).digest();
+  return timingSafeEqual(x, y);
+};
+
+/**
+ * Check a PIN. After 5 wrong tries the member is locked out for 5 minutes.
+ * First-time setup online: a parent who has no PIN yet can sign in with the site's
+ * SETUP_CODE instead, then set their PIN in Settings. Once they have a PIN the code
+ * no longer works for them.
+ */
+export async function checkPin(db: Db, memberKey: string, pin: string, now = new Date(), setupCode?: string): Promise<User> {
   const member = await lookup.member(db, memberKey);
+  if (!member.pinHash && member.role === "parent" && setupCode && setupCode.length >= 8 && same(pin, setupCode)) {
+    return { key: member.key, role: member.role };
+  }
   if (!member.pinHash) throw new InputError(`${member.name} has no PIN yet. A parent can set one in Settings.`);
   if (member.pinLockedUntil && member.pinLockedUntil > now) {
     throw new InputError("Too many wrong tries. Wait a few minutes and try again.");

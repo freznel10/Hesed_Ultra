@@ -13,12 +13,15 @@
     "art:places": "python3 tools/gen_places.py",
     "art:characters": "python3 tools/prep_characters.py && python3 tools/prep_sheet.py",
     "art:sync": "mkdir -p public/sprites/portraits && cp assets/places/*.png assets/characters/*_front.png assets/characters/*_walk.png assets/characters/walk.json public/sprites/ && cp assets/characters/portraits/*.png public/sprites/portraits/",
-    "dev:netlify": "netlify dev"
+    "dev:netlify": "netlify dev",
+    "export": "tsx db/backup.ts export",
+    "import": "tsx db/backup.ts import"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"
@@ -26,6 +29,7 @@
   "devDependencies": {
     "@netlify/functions": "^6.1.1",
     "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",

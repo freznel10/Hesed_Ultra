@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { ZodError } from "zod";
 import { checkPin, createSession, createToken, listTokens, readSession, revokeToken, setPin } from "../../core/auth";
 import { InputError, lookup } from "../../core/context";
+import { assertSafe, loginRequired, Misconfigured, sessionSecret } from "../../core/mode";
 import { can, Forbidden, type User } from "../../core/permissions";
 import { service, type Service } from "../../core/service";
 import { getDb, type Db } from "../../db/client";
@@ -10,11 +11,10 @@ import { getDb, type Db } from "../../db/client";
  * The web app's API. Thin by design: work out who is asking, then call core/service.
  *
  * Who is asking:
- *  - Local use (no SESSION_SECRET set): the app says who is using it in the x-member
- *    header (the "Who's here?" picker). No PIN needed on your own machine.
- *  - Online (SESSION_SECRET set): a signed cookie from logging in with a PIN.
+ *  - Local use: the app says who is using it in the x-member header (the "Who's here?"
+ *    picker). No PIN needed on your own machine.
+ *  - Online: a signed cookie from logging in with a PIN. See core/mode.ts.
  */
-const SECRET = process.env.SESSION_SECRET;
 const COOKIE = "hesed_session";
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -24,7 +24,8 @@ class Unauthorized extends Error {}
 
 async function whoIs(req: Request, db: Db): Promise<User | null> {
   let key: string | null;
-  if (SECRET) {
+  const SECRET = sessionSecret();
+  if (loginRequired() && SECRET) {
     const cookie = req.headers.get("cookie")?.split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`));
     key = readSession(cookie?.slice(COOKIE.length + 1), SECRET);
   } else {
@@ -78,6 +79,8 @@ const routes: [method: string, pattern: RegExp, handler: Handler][] = [
 export default async (req: Request) => {
   const path = new URL(req.url).pathname.replace(/^\/api/, "") || "/";
   try {
+    assertSafe();
+    const SECRET = sessionSecret();
     const db = await getDb();
     const body = req.method === "GET" || req.method === "DELETE" ? undefined : await req.json().catch(() => ({}));
 
@@ -86,11 +89,11 @@ export default async (req: Request) => {
     if (path === "/session" && req.method === "GET") {
       const user = await whoIs(req, db);
       const { members } = await service(db, { key: "", role: "child" }, "app").reference();
-      return json({ loginRequired: Boolean(SECRET), user, members });
+      return json({ loginRequired: loginRequired(), user, members });
     }
     if (path === "/login" && req.method === "POST") {
       if (!SECRET) throw new InputError("Logging in is only needed online");
-      const user = await checkPin(db, String(body?.member ?? ""), String(body?.pin ?? ""));
+      const user = await checkPin(db, String(body?.member ?? ""), String(body?.pin ?? ""), new Date(), process.env.SETUP_CODE);
       const cookie = `${COOKIE}=${createSession(user.key, SECRET)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 86400}`;
       return json({ user }, 200, { "set-cookie": cookie });
     }
@@ -107,6 +110,7 @@ export default async (req: Request) => {
     }
     return json({ error: "Not found" }, 404);
   } catch (err) {
+    if (err instanceof Misconfigured) return json({ error: err.message }, 503);
     if (err instanceof Unauthorized) return json({ error: "Please sign in" }, 401);
     if (err instanceof Forbidden) return json({ error: err.message }, 403);
     if (err instanceof InputError) return json({ error: err.message }, 400);

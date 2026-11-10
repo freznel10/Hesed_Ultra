@@ -1,5 +1,12 @@
 # Hesed Ultra — Implementation Plan
 
+> **Status:** phases 0–5 are built and tested, and the code for phase 6 (logins, tokens, Postgres) is in place; only creating the Netlify site remains. See [README.md](README.md) for how things work now. Where this plan and the README differ, the README is current. The main differences from this plan:
+>
+> - Agents connect over HTTP at `/mcp` on the running app, not through a separate stdio program. The local database can only be opened by one program at a time.
+> - `npm run dev` runs Vite with the functions built in, not the Netlify CLI.
+> - Online, the database driver is plain `pg`; the schema is managed by `db/migrations.ts`.
+> - Not built: undoing a change from the change log, MCP resources and prompts, activity animations other than walking, and the phase 7 extras.
+
 A family app with two halves that share one database:
 
 1. **Pixel-art daily life log** — each day is shown as a small pixel scene of what the family did.
@@ -186,11 +193,11 @@ No Netlify account is needed for local use; `netlify-cli` is a dev dependency. T
 |---|---|---|
 | **0. Scaffold** ✅ | Vite+React+TS, netlify.toml, Drizzle + PGlite, lint/test (Vitest) | `npm run dev` shows a page and `/api/health` answers |
 | **1. Core + data** ✅ | `db/schema.ts`, migrations, seed, `core/*` with Zod + audit log, unit tests | Core functions are tested for activities, transactions, budgets, and goals |
-| **2. REST API + basic UI** | CRUD screens for activities, transactions, budgets, and goals (no pixels yet) | The family can log a full day by hand |
-| **3. MCP server** | `mcp/tools.ts`, stdio entry, `/mcp` function, token auth | Claude Code can log an expense and it appears in the app |
-| **4. Pixel scene v1** | Sprite loader, map, member walking, activity animations, time scrubber, using your assets | Today's entries play back as a scene |
-| **5. Finance visuals** | Savings jars, budget bars, coin pops, calendar thumbnails | Budget and savings pages are fully pixel-styled |
-| **6. Deploy** | Netlify site + Netlify DB + login + tokens | Reachable from phones; agents connect remotely |
+| **2. REST API + basic UI** ✅ | CRUD screens for activities, transactions, budgets, and goals (no pixels yet) | The family can log a full day by hand |
+| **3. MCP server** ✅ | `mcp/tools.ts`, stdio entry, `/mcp` function, token auth | Claude Code can log an expense and it appears in the app |
+| **4. Pixel scene v1** ✅ | Sprite loader, map, member walking, activity animations, time scrubber, using your assets | Today's entries play back as a scene |
+| **5. Finance visuals** ✅ | Savings jars, budget bars, coin pops, calendar thumbnails | Budget and savings pages are fully pixel-styled |
+| **6. Deploy** (code ready, site not created) | Netlify site + Netlify DB + login + tokens | Reachable from phones; agents connect remotely |
 | **7. Nice-to-haves** | Installable on phones (PWA) with offline queue, photos, end-of-day summary, recurring expenses, CSV bank import | — |
 
 ---

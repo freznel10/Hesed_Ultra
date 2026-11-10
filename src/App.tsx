@@ -45,6 +45,7 @@ function WhoIsHere(props: { session: Session; onDone: () => void }) {
             <input autoFocus type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} />
           </label>
           <button>Sign in</button>
+          <small>First time online? A parent signs in with the site's setup code, then sets PINs in Settings.</small>
           {error && <p className="error" role="alert">{error}</p>}
         </form>
       )}
