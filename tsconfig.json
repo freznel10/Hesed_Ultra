@@ -15,5 +15,5 @@
     "noEmit": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "core", "db", "netlify", "vite.config.ts"]
+  "include": ["src", "core", "db", "mcp", "netlify", "vite.config.ts"]
 }

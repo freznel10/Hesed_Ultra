@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 /**
- * Serve netlify/functions/api.ts at /api/* inside the Vite dev server, so local
+ * Serve the Netlify functions (/api/* and /mcp) inside the Vite dev server, so local
  * development is one fast process (`npm run dev`). On Netlify the same file runs
  * as a real Function. `npm run dev:netlify` uses the full Netlify CLI instead.
  */
@@ -11,9 +11,10 @@ function localApi(): Plugin {
     name: "hesed-local-api",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url?.startsWith("/api/")) return next();
+        const file = req.url?.startsWith("/api/") ? "api" : req.url?.split("?")[0] === "/mcp" ? "mcp" : null;
+        if (!file) return next();
         try {
-          const mod = await server.ssrLoadModule("/netlify/functions/api.ts");
+          const mod = await server.ssrLoadModule(`/netlify/functions/${file}.ts`);
           const chunks: Buffer[] = [];
           for await (const c of req) chunks.push(c as Buffer);
           const body = chunks.length ? Buffer.concat(chunks) : undefined;
