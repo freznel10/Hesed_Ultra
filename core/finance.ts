@@ -3,6 +3,7 @@ import type { Db } from "../db/client";
 import * as schema from "../db/schema";
 import { record } from "./audit";
 import { type Ctx, InputError, lookup } from "./context";
+import { formatPHP } from "./money";
 import { BudgetInput, Day, GoalInput, Month, SavingsEntryInput, TransactionInput } from "./schemas";
 
 type Reader = Pick<Db, "select">;
@@ -225,7 +226,7 @@ export async function addSavingsEntry(ctx: Ctx, raw: SavingsEntryInput) {
     if (goal.archived) throw new InputError(`"${goal.name}" is archived`);
     const saved = await savedFor(tx, goal.id);
     if (saved + input.amountCents < 0) {
-      throw new InputError(`"${goal.name}" only has ${saved} centavos saved; cannot withdraw ${-input.amountCents}`);
+      throw new InputError(`"${goal.name}" only has ${formatPHP(saved)} saved, so ${formatPHP(-input.amountCents)} cannot be taken out`);
     }
     const [entry] = await tx
       .insert(schema.savingsEntries)

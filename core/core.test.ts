@@ -134,7 +134,7 @@ describe("savings", () => {
     await addSavingsEntry(agent, { goalId: goal.id, date: "2026-11-05", amountCents: -500_000, note: "car repair" });
     const [g] = await listGoals(db);
     expect(g).toMatchObject({ savedCents: 2_000_000, remainingCents: 8_000_000, percent: 20 });
-    await expect(addSavingsEntry(app, { goalId: goal.id, date: "2026-11-06", amountCents: -2_000_001 })).rejects.toThrow(/cannot withdraw/);
+    await expect(addSavingsEntry(app, { goalId: goal.id, date: "2026-11-06", amountCents: -2_000_001 })).rejects.toThrow("only has ₱20,000.00 saved");
     await expect(addSavingsEntry(app, { goalId: goal.id, date: "2026-11-06", amountCents: 0 })).rejects.toThrow();
     await expect(addSavingsEntry(app, { goalId: 99, date: "2026-11-06", amountCents: 100 })).rejects.toThrow(InputError);
   });
