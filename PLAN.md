@@ -161,7 +161,7 @@ npm run db:migrate        # creates ./.data/pglite
 npm run db:seed           # optional demo family + week
 
 # day to day
-npm run dev               # netlify dev → Vite app + functions at http://localhost:8888
+npm run dev               # Vite app + API at http://localhost:5173 (dev:netlify for the Netlify CLI)
 npm run mcp               # (optional) run the stdio MCP server by hand for testing
 ```
 
@@ -184,7 +184,7 @@ No Netlify account is needed for local use; `netlify-cli` is a dev dependency. T
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| **0. Scaffold** | Vite+React+TS, netlify.toml, Drizzle + PGlite, lint/test (Vitest) | `npm run dev` shows a page and `/api/health` answers |
+| **0. Scaffold** ✅ | Vite+React+TS, netlify.toml, Drizzle + PGlite, lint/test (Vitest) | `npm run dev` shows a page and `/api/health` answers |
 | **1. Core + data** | `db/schema.ts`, migrations, seed, `core/*` with Zod + audit log, unit tests | Core functions are tested for activities, transactions, budgets, and goals |
 | **2. REST API + basic UI** | CRUD screens for activities, transactions, budgets, and goals (no pixels yet) | The family can log a full day by hand |
 | **3. MCP server** | `mcp/tools.ts`, stdio entry, `/mcp` function, token auth | Claude Code can log an expense and it appears in the app |

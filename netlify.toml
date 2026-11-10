@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # PGlite ships WebAssembly files that must not be bundled.
+  external_node_modules = ["@electric-sql/pglite"]
+
+[dev]
+  framework = "vite"
+  targetPort = 5173
+  command = "npm run dev"
+  port = 8888
+  autoLaunch = false

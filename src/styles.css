@@ -1,0 +1,20 @@
+:root {
+  --ink: #222034;
+  --paper: #f5f2e8;
+  --accent: #802240;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--ink);
+  background: var(--paper);
+}
+body { margin: 0; }
+main { max-width: 1560px; margin: 0 auto; padding: 24px; }
+h1 { margin: 0; font-size: 28px; letter-spacing: 2px; color: var(--accent); }
+.sub { margin: 4px 0 16px; }
+.pixel { image-rendering: pixelated; }
+.town { width: 100%; height: auto; border: 4px solid var(--ink); display: block; }
+.family { display: flex; gap: 24px; margin: 24px 0; flex-wrap: wrap; }
+.member { margin: 0; text-align: center; }
+.member img { height: 192px; }
+.member figcaption { margin-top: 8px; font-weight: bold; }
+.role { display: block; font-weight: normal; font-size: 12px; opacity: 0.7; }
+.status { font-size: 12px; opacity: 0.7; }
