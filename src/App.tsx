@@ -24,7 +24,13 @@ export default function App() {
       <section className="family">
         {members.map((m) => (
           <figure key={m.id} className="member">
-            <img className="pixel" src={`/sprites/${m.sprite}.png`} alt={m.name} />
+            <img
+              className="pixel"
+              src={`/sprites/${m.sprite}.png`}
+              alt={m.name}
+              // show at exactly 2x so every art pixel stays square
+              onLoad={(e) => (e.currentTarget.style.width = `${e.currentTarget.naturalWidth * 2}px`)}
+            />
             <figcaption>
               {m.name}
               <span className="role">{m.role}</span>

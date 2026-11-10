@@ -38,11 +38,11 @@ export default function Town() {
         ctx.drawImage(img, x, GROUND + 4 - img.height);
         x += img.width + 4;
       });
-      // family at half size in front of the house (placeholder until small walk sprites exist)
+      // family at quarter size in front of the house (placeholder until small walk sprites exist)
       let fx = houseX + 20;
       family.forEach((img, i) => {
-        const w = img ? Math.round(img.width / 2) : 10;
-        const h = img ? Math.round(img.height / 2) : 30;
+        const w = img ? Math.round(img.width / 4) : 10;
+        const h = img ? Math.round(img.height / 4) : 30;
         if (img) ctx.drawImage(img, fx, GROUND + 8 - h, w, h);
         else {
           ctx.fillStyle = MEMBERS[i].color;

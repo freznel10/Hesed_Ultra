@@ -267,9 +267,9 @@ Placeholder rectangles in each member's colour are used until the cleaned sheets
 **Places** (`tools/gen_places.py`, drawn in code, transparent PNGs in `assets/places/`, enlarged previews in `assets/places/preview/`):
 house, church (New Wine Alabang), school_miriam, school_ateneo, office, and malls: SM Marikina, SM Aura, Ayala Feliz, Up Town Center, Festival, Alabang Town Center. These are stylised impressions, not replicas, with no store logos. To change colours or details, or to add a mall to the `MALLS` list, edit the script and rerun it.
 
-**Characters** (`tools/prep_characters.py`): auto-converted from `assets/characters/reference/family-front.jpg` into native sprites, roughly 21×61 px each (`assets/characters/<name>_front.png`). Faces and Ellie's headphones need a hand touch-up in Aseprite or Piskel.
+**Characters** (`tools/prep_characters.py`): auto-converted from `assets/characters/reference/family-front.jpg` at the art's true pixel size (about 8.25 image px per art pixel) into native sprites: Freznel 46×131, Diane 43×125, Ellie 43×122, Rafa 39×111 (`assets/characters/<name>_front.png`). Glasses, faces, headphones, stripes and the hoodie pattern all survive; only a few stray pixels from JPG noise remain.
 
-**Scale:** buildings are 80–112 px tall, so on the town map the walking characters should be smaller sprites, about 24–32 px tall. Use the 60 px versions on profile and "today" cards, and portraits for dialogue and mood. The walk cycles still need to be made at the small size.
+**Scale:** buildings are 80–112 px tall, so on the town map the walking characters should be smaller sprites, about 24–32 px tall. Use the full-size (110–131 px) versions on profile and "today" cards, and portraits for dialogue and mood. The walk cycles still need to be made at the small size.
 
 ## 13. Open questions
 

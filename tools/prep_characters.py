@@ -8,7 +8,7 @@ Freznel, Diane, Rafa, Ellie) and writes, per member:
   assets/characters/preview/<name>@4x.png  enlarged for checking
 
 Steps: find each figure by its non-white columns, cut out the white
-background, shrink by the art's own pixel size with a per-block majority
+background, shrink by the art's own pixel size (about 8.25 image px per art pixel, grid position auto-detected) with a per-block majority
 colour (keeps edges crisp, unlike smooth resizing), then reduce to a small
 palette to remove JPG noise.
 """
@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "assets" / "characters" / "reference" / "family-front.jpg"
 OUT = ROOT / "assets" / "characters"
 NAMES = ["freznel", "diane", "rafa", "ellie"]
-BLOCK = 17          # size of one art pixel in the reference image, measured by eye
+BLOCK = 8.25        # size of one art pixel in the reference image (measured from edge spacing)
 WHITE = 236         # anything brighter on all channels counts as background
 
 
@@ -43,31 +43,52 @@ def figure_spans(img):
     return spans
 
 
+def grid_phase(gray, axis):
+    """Find where the art's pixel grid starts, from where colour edges fall modulo BLOCK."""
+    px, (w, h) = gray.load(), gray.size
+    buckets = Counter()
+    if axis == "x":
+        for y in range(0, h, 5):
+            for x in range(1, w):
+                if abs(px[x, y] - px[x - 1, y]) > 40:
+                    buckets[round((x % BLOCK) * 4) / 4] += 1
+    else:
+        for x in range(0, w, 5):
+            for y in range(1, h):
+                if abs(px[x, y] - px[x, y - 1]) > 40:
+                    buckets[round((y % BLOCK) * 4) / 4] += 1
+    return buckets.most_common(1)[0][0] if buckets else 0.0
+
+
 def shrink(crop):
+    gray = crop.convert("L")
+    ox, oy = grid_phase(gray, "x"), grid_phase(gray, "y")
     w, h = crop.size
-    out = Image.new("RGBA", (w // BLOCK + 1, h // BLOCK + 1), (0, 0, 0, 0))
+    cols, rows = int((w - ox) / BLOCK), int((h - oy) / BLOCK)
+    out = Image.new("RGBA", (cols, rows), (0, 0, 0, 0))
     src, dst = crop.load(), out.load()
-    for by in range(0, h, BLOCK):
-        for bx in range(0, w, BLOCK):
-            votes = Counter()
-            bg = 0
-            # sample the middle of the block to avoid edge bleed
-            for y in range(by + 4, min(by + BLOCK - 4, h)):
-                for x in range(bx + 4, min(bx + BLOCK - 4, w)):
+    m = BLOCK * 0.3  # sample the middle of each block to avoid edge bleed
+    for r in range(rows):
+        for c in range(cols):
+            x0, y0 = ox + c * BLOCK, oy + r * BLOCK
+            votes, bg, total = Counter(), 0, 0
+            for y in range(int(y0 + m), int(y0 + BLOCK - m) + 1):
+                for x in range(int(x0 + m), int(x0 + BLOCK - m) + 1):
+                    if x >= w or y >= h:
+                        continue
                     p = src[x, y]
+                    total += 1
                     if is_bg(p):
                         bg += 1
                     else:
-                        votes[(p[0] // 12 * 12, p[1] // 12 * 12, p[2] // 12 * 12)] += 1
-            total = bg + sum(votes.values())
-            if total and bg < total * 0.5 and votes:
-                c = votes.most_common(1)[0][0]
-                dst[bx // BLOCK, by // BLOCK] = (*c, 255)
+                        votes[(p[0] // 8 * 8, p[1] // 8 * 8, p[2] // 8 * 8)] += 1
+            if votes and bg < total * 0.5:
+                dst[c, r] = (*votes.most_common(1)[0][0], 255)
     bbox = out.getbbox()
     return out.crop(bbox) if bbox else out
 
 
-def reduce_palette(img, colors=24):
+def reduce_palette(img, colors=64):
     alpha = img.getchannel("A")
     q = img.convert("RGB").quantize(colors=colors, method=Image.Quantize.MEDIANCUT).convert("RGBA")
     q.putalpha(alpha)
