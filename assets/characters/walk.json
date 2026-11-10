@@ -1,0 +1,40 @@
+{
+  "cell": [
+    32,
+    66
+  ],
+  "frames": {
+    "freznel": [
+      "front",
+      "back",
+      "right",
+      "left",
+      "right",
+      "right"
+    ],
+    "rafa": [
+      "front",
+      "back",
+      "front_walk",
+      "left",
+      "back_walk",
+      "right"
+    ],
+    "diane": [
+      "front",
+      "back",
+      "right",
+      "skip",
+      "right",
+      "right"
+    ],
+    "ellie": [
+      "front",
+      "back",
+      "right",
+      "left",
+      "back_walk",
+      "right"
+    ]
+  }
+}

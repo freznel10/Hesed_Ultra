@@ -11,8 +11,8 @@
     "test": "vitest run",
     "db:seed": "tsx db/seed.ts",
     "art:places": "python3 tools/gen_places.py",
-    "art:characters": "python3 tools/prep_characters.py",
-    "art:sync": "mkdir -p public/sprites && cp assets/places/*.png assets/characters/*_front.png public/sprites/",
+    "art:characters": "python3 tools/prep_characters.py && python3 tools/prep_sheet.py",
+    "art:sync": "mkdir -p public/sprites/portraits && cp assets/places/*.png assets/characters/*_front.png assets/characters/*_walk.png assets/characters/walk.json public/sprites/ && cp assets/characters/portraits/*.png public/sprites/portraits/",
     "dev:netlify": "netlify dev"
   },
   "dependencies": {

@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { api, type Health, type Member } from "./api";
 import Town from "./scene/Town";
 
+const PORTRAIT: Record<string, string> = {
+  freznel: "freznel_neutral",
+  diane: "diane_smile",
+  ellie: "ellie_surprised",
+  rafa: "rafa_surprised",
+};
+
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -31,6 +38,7 @@ export default function App() {
               // show at exactly 2x so every art pixel stays square
               onLoad={(e) => (e.currentTarget.style.width = `${e.currentTarget.naturalWidth * 2}px`)}
             />
+            <img className="pixel portrait" src={`/sprites/portraits/${PORTRAIT[m.key] ?? ""}.png`} alt="" />
             <figcaption>
               {m.name}
               <span className="role">{m.role}</span>

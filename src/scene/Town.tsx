@@ -4,9 +4,13 @@ import { loadSprite } from "./sprites";
 
 /** Phase 0 town: one row of places on a street, with the family standing at the house. */
 const STREET = ["house", "church", "school_miriam", "school_ateneo", "office", "mall_sm_marikina", "mall_sm_aura"];
-const W = 760;
-const H = 150;
-const GROUND = 128;
+// Buildings are drawn at 2x and people at 1x so the family reads clearly next to them.
+const SCALE = 2;
+const W = 1520;
+const H = 300;
+const GROUND = 256;
+const CELL_W = 32; // walk strip cell size, see public/sprites/walk.json
+const CELL_H = 66;
 
 export default function Town() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -21,34 +25,32 @@ export default function Town() {
       ctx.fillStyle = "#96ceec";
       ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = "#5ca048";
-      ctx.fillRect(0, GROUND, W, 6);
+      ctx.fillRect(0, GROUND, W, 12);
       ctx.fillStyle = "#545660";
-      ctx.fillRect(0, GROUND + 6, W, H - GROUND - 6);
+      ctx.fillRect(0, GROUND + 12, W, H - GROUND - 12);
       ctx.fillStyle = "#e6dcaa";
-      for (let x = 0; x < W; x += 14) ctx.fillRect(x, H - 8, 7, 1);
+      for (let x = 0; x < W; x += 28) ctx.fillRect(x, H - 16, 14, 2);
 
       const places = await Promise.all(STREET.map(loadSprite));
-      const family = await Promise.all(MEMBERS.map((m) => loadSprite(m.sprite)));
+      const family = await Promise.all(MEMBERS.map((m) => loadSprite(`${m.key}_walk`)));
       if (cancelled) return;
-      let x = 4;
+      let x = 8;
       let houseX = 0;
       places.forEach((img, i) => {
         if (!img) return;
         if (STREET[i] === "house") houseX = x;
-        ctx.drawImage(img, x, GROUND + 4 - img.height);
-        x += img.width + 4;
+        ctx.drawImage(img, x, GROUND + 8 - img.height * SCALE, img.width * SCALE, img.height * SCALE);
+        x += (img.width + 4) * SCALE;
       });
-      // family at quarter size in front of the house (placeholder until small walk sprites exist)
-      let fx = houseX + 20;
+      // family standing in front of the house: frame 0 (facing front) of each walk strip
+      let fx = houseX + 36;
       family.forEach((img, i) => {
-        const w = img ? Math.round(img.width / 4) : 10;
-        const h = img ? Math.round(img.height / 4) : 30;
-        if (img) ctx.drawImage(img, fx, GROUND + 8 - h, w, h);
+        if (img) ctx.drawImage(img, 0, 0, CELL_W, CELL_H, fx, GROUND + 18 - CELL_H, CELL_W, CELL_H);
         else {
           ctx.fillStyle = MEMBERS[i].color;
-          ctx.fillRect(fx, GROUND + 8 - h, w, h);
+          ctx.fillRect(fx + 8, GROUND - 30, 16, 48);
         }
-        fx += w + 3;
+        fx += CELL_W;
       });
     })();
     return () => {

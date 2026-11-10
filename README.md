@@ -24,7 +24,7 @@ Data is stored in `.data/pglite` inside the project folder (not committed to git
 | `npm run typecheck` | TypeScript check |
 | `npm run db:seed` | Create/update the local database with the family, places and activities |
 | `npm run art:places` | Redraw place sprites (`tools/gen_places.py`, needs Python 3 + Pillow) |
-| `npm run art:characters` | Re-convert family sprites from `assets/characters/reference/` |
+| `npm run art:characters` | Re-convert family sprites, walk frames and portraits from `assets/characters/reference/` |
 | `npm run art:sync` | Copy sprites into `public/sprites/` for the app |
 
 ## Layout

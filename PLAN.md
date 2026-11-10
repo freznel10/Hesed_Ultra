@@ -269,7 +269,19 @@ house, church (New Wine Alabang), school_miriam, school_ateneo, office, and mall
 
 **Characters** (`tools/prep_characters.py`): auto-converted from `assets/characters/reference/family-front.jpg` at the art's true pixel size (about 8.25 image px per art pixel) into native sprites: Freznel 46×131, Diane 43×125, Ellie 43×122, Rafa 39×111 (`assets/characters/<name>_front.png`). Glasses, faces, headphones, stripes and the hoodie pattern all survive; only a few stray pixels from JPG noise remain.
 
-**Scale:** buildings are 80–112 px tall, so on the town map the walking characters should be smaller sprites, about 24–32 px tall. Use the full-size (110–131 px) versions on profile and "today" cards, and portraits for dialogue and mood. The walk cycles still need to be made at the small size.
+**Walk sprites and portraits** (`tools/prep_sheet.py`, from `assets/characters/reference/family-sheet.jpg`):
+
+- `assets/characters/<name>_walk.png`: 6 frames per person in a row, each 32×66 px with feet on the bottom edge. `walk.json` says what each frame shows (front, back, right, left, front/back walking). People are about 56 px tall.
+- `assets/characters/portraits/`: 8 faces, about 50×56 px: Freznel (neutral, surprised), Diane (happy, smile, laugh), Ellie (surprised, worried), Rafa (surprised).
+
+Known gaps in the source art, to fix by redrawing or regenerating:
+
+- Diane's 4th walk frame shows a different person, so it is marked `skip`.
+- Side-walk frames are single poses, not a full cycle; 2–3 frames per direction are usable. Freznel and Diane have no front/back walking frames.
+- Portraits are uneven: Rafa and Ellie have no neutral or happy face, Freznel has no happy face.
+- Freznel's full-size sprite has two small white slivers at the hips.
+
+**Scale:** the town draws buildings at 2× and the 56 px walk sprites at 1×. The full-size sprites (110–131 px) are for profile cards, and portraits are for moods and the daily view.
 
 ## 13. Open questions
 

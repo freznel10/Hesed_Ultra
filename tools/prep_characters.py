@@ -84,8 +84,57 @@ def shrink(crop):
                         votes[(p[0] // 8 * 8, p[1] // 8 * 8, p[2] // 8 * 8)] += 1
             if votes and bg < total * 0.5:
                 dst[c, r] = (*votes.most_common(1)[0][0], 255)
+            else:
+                dst[c, r] = PAPER  # white for now; see clear_background
+    out = keep_largest(clear_background(out))
     bbox = out.getbbox()
     return out.crop(bbox) if bbox else out
+
+
+PAPER = (248, 248, 248, 255)
+
+
+def clear_background(img):
+    """Make white transparent only where it touches the outside, so eye whites,
+    teeth and white shoes inside a figure stay white."""
+    w, h = img.size
+    px = img.load()
+    stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+    while stack:
+        x, y = stack.pop()
+        if 0 <= x < w and 0 <= y < h and px[x, y] == PAPER:
+            px[x, y] = (0, 0, 0, 0)
+            # include diagonals so thin gaps (between an arm and the body) are reached
+            stack += [(x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
+    return img
+
+
+def keep_largest(img):
+    """Drop stray specks (bits of neighbouring figures, JPG noise) around the main figure."""
+    w, h = img.size
+    px = img.load()
+    seen, best = set(), []
+    for sy in range(h):
+        for sx in range(w):
+            if (sx, sy) in seen or px[sx, sy][3] == 0:
+                continue
+            comp, stack = [], [(sx, sy)]
+            seen.add((sx, sy))
+            while stack:
+                x, y = stack.pop()
+                comp.append((x, y))
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in seen and px[nx, ny][3]:
+                        seen.add((nx, ny))
+                        stack.append((nx, ny))
+            if len(comp) > len(best):
+                best = comp
+    keep = set(best)
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] and (x, y) not in keep:
+                px[x, y] = (0, 0, 0, 0)
+    return img
 
 
 def reduce_palette(img, colors=64):
