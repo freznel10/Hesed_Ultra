@@ -20,8 +20,8 @@ Data can be added and changed in the app **and** by Claude or other agents throu
 | Database | **Postgres via Drizzle ORM**. Locally: **PGlite** (Postgres running inside Node, stored in a folder, nothing to install). Production: **Netlify DB (Neon Postgres)** | One schema and one set of queries everywhere. |
 | Validation | **Zod** schemas shared by the UI, API, and MCP | One definition of "a valid transaction" for every way data comes in. |
 | Agent access | **MCP server** with two ways in: local **stdio** (Claude Desktop / Claude Code on your machine) and remote **Streamable HTTP** at `/mcp` on Netlify | Claude and other agents can read and write the same data the app does. |
-| Money | Store as **integer cents** plus a currency code in settings | Avoids floating-point rounding errors. |
-| Auth | Local: none. Netlify: a family login (PIN or passphrase per member, signed cookie) + **API tokens** for agents | Simple, private, and every change can be traced to who or what made it. |
+| Money | **Philippine peso (PHP)** stored as integer centavos | Avoids floating-point rounding errors. |
+| Auth | Local: none. Netlify: every family member logs in (PIN or passphrase, signed cookie), with parent/child roles, + **API tokens** for agents | Simple, private, and every change can be traced to who or what made it. |
 
 ---
 
@@ -195,10 +195,51 @@ No Netlify account is needed for local use; `netlify-cli` is a dev dependency. T
 
 ---
 
-## 10. Open questions for you
+## 10. Decisions so far
 
-1. **Family members:** who are they (names/roles), and do you already have a sprite per person in your assets?
-2. **Currency:** which currency (and do you ever need more than one)?
-3. **Places and activities:** which places and activity types matter most? This decides the map layout.
-4. **Assets:** tile/sprite size (16×16? 32×32?), and are they Aseprite files or PNG sheets? Any licences to respect if some are third-party packs?
-5. **Who logs in** once it's on Netlify: just parents, or kids too (read-only)?
+**Family (seeded as `members`):** Freznel, Diane, Ellie, Rafa. Every member gets a login once the app is online.
+
+**Currency:** PHP (₱), stored as centavos (`amount_cents`), displayed as `₱1,250.00`. The `en-PH` locale is used for number and date formatting.
+
+**Places (map hotspots):**
+
+| Key | Place | Notes |
+|---|---|---|
+| `house` | House | Home base; everyone starts and ends the day here |
+| `church` | Church | |
+| `school` | School | |
+| `mall` | Malls | One hotspot; the activity note says which mall |
+| `office` | Office | |
+
+More places can be added in Settings without code changes.
+
+**Activity types (seed list, editable):**
+
+| Key | Activity | Default place | Animation idea |
+|---|---|---|---|
+| `dining_out` | Dining out | mall | sitting at table, eating |
+| `piano` | Studying piano | house | playing keys |
+| `worship` | Worship | church | standing, music notes |
+| `cleaning` | Cleaning | house | sweeping |
+| `school` | School / class | school | sitting at desk |
+| `studying` | Studying / homework | house | reading book |
+| `work` | Work | office | typing |
+| `shopping` | Shopping | mall | carrying bags |
+| `play` | Play / rest | house | idle / bouncing |
+| `travel` | Commute / travel | — | walking between places |
+
+**Expense categories (seed, PHP context, editable):** Groceries, Dining out, Transportation/Gas, Utilities (Meralco, water, internet), Tuition & school, Lessons (piano), Church/Tithes & offerings, Household, Health, Shopping, Allowance, Others.
+
+**Logins and permissions (when online):**
+
+| Role | Members | Can do |
+|---|---|---|
+| `parent` | Freznel, Diane | Everything: budgets, savings, settings, API tokens, undo |
+| `child` | Ellie, Rafa | Log and edit their own activities, log their own spending/allowance, view the family scene and savings goals; no access to budget settings, tokens, or other members' transactions |
+
+Each member logs in with their own PIN or passphrase. Kids' accounts can be limited further later if needed. Agent tokens are created by a parent and can act "on behalf of" a member so the audit log stays accurate.
+
+## 11. Open questions
+
+1. **Assets:** what's in `T7 Shield/Projects/Hesed_Ultra` (sprite size, PNG vs Aseprite, one sprite per family member?), and are any of them third-party packs with licences to respect? This needs either the files pushed to the repo or a session running on that computer.
+2. **Ages:** roughly how old are Ellie and Rafa? This affects how simple the kids' screens should be.
