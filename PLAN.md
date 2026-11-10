@@ -1,0 +1,204 @@
+# Hesed Ultra — Implementation Plan
+
+A family app with two halves that share one database:
+
+1. **Pixel-art daily life log** — each day is shown as a small pixel scene of what the family did.
+2. **Budget & savings tracker** — log spending, set budgets, track savings goals.
+
+Data can be added and changed in the app **and** by Claude or other agents through an MCP server. The app runs locally first and moves to Netlify later without changing code.
+
+---
+
+## 1. Guiding decisions
+
+| Concern | Choice | Why |
+|---|---|---|
+| Frontend | **Vite + React + TypeScript** | Fast local dev, static build that Netlify serves for free. |
+| Pixel scene | **HTML Canvas 2D** + sprite sheets, `image-rendering: pixelated`, integer scaling | No game engine needed; full control over your own sprites. Can move to PixiJS later if scenes get heavy. |
+| Styling | Plain CSS + a pixel font (e.g. a free OFL pixel font) | Keeps the retro look consistent. |
+| API | **Netlify Functions** (TypeScript), run locally with `netlify dev` | The same code runs on your laptop and on Netlify. |
+| Database | **Postgres via Drizzle ORM**. Locally: **PGlite** (Postgres running inside Node, stored in a folder, nothing to install). Production: **Netlify DB (Neon Postgres)** | One schema and one set of queries everywhere. |
+| Validation | **Zod** schemas shared by the UI, API, and MCP | One definition of "a valid transaction" for every way data comes in. |
+| Agent access | **MCP server** with two ways in: local **stdio** (Claude Desktop / Claude Code on your machine) and remote **Streamable HTTP** at `/mcp` on Netlify | Claude and other agents can read and write the same data the app does. |
+| Money | Store as **integer cents** plus a currency code in settings | Avoids floating-point rounding errors. |
+| Auth | Local: none. Netlify: a family login (PIN or passphrase per member, signed cookie) + **API tokens** for agents | Simple, private, and every change can be traced to who or what made it. |
+
+---
+
+## 2. Repository layout
+
+```
+Hesed_Ultra/
+├─ PLAN.md
+├─ package.json
+├─ netlify.toml
+├─ .env.example                 # DATABASE_URL, MCP_TOKEN, etc. (no real secrets committed)
+├─ assets/                      # ← your existing sprites/assets go here (source files, e.g. .aseprite/.png)
+│  ├─ characters/               #   family member sprites
+│  ├─ places/                   #   backgrounds: home, school, office, park, church, market…
+│  ├─ props/                    #   coins, piggy bank/jar, food, cars…
+│  └─ ui/                       #   icons, frames, fonts
+├─ public/sprites/              # exported sprite sheets + JSON atlases the app actually loads
+├─ src/                         # React app
+│  ├─ main.tsx, App.tsx
+│  ├─ pages/  Today.tsx  Calendar.tsx  Budget.tsx  Savings.tsx  Family.tsx  Settings.tsx
+│  ├─ scene/                    # canvas renderer
+│  │  ├─ engine.ts              #   game loop, camera, integer scaling
+│  │  ├─ sprites.ts             #   load sheets/atlases, animations
+│  │  ├─ dayScene.ts            #   turns a day's activities into a scene timeline
+│  │  └─ catalog.ts             #   activity type → place + animation + props
+│  └─ api.ts                    # typed fetch client
+├─ core/                        # ★ shared domain logic (no UI, no HTTP)
+│  ├─ schemas.ts                #   Zod: Member, Activity, Transaction, Budget, Goal…
+│  ├─ activities.ts             #   create/update/list/delete activities
+│  ├─ finance.ts                #   transactions, budgets, month summaries, goal progress
+│  └─ audit.ts                  #   records every change with its source
+├─ db/
+│  ├─ schema.ts                 # Drizzle tables
+│  ├─ client.ts                 # PGlite locally, Neon in production (picked by env)
+│  ├─ migrations/
+│  └─ seed.ts                   # sample family + a demo week
+├─ netlify/functions/
+│  ├─ api.ts                    # REST API → core/*
+│  └─ mcp.ts                    # remote MCP (Streamable HTTP) → core/*
+└─ mcp/
+   ├─ tools.ts                  # MCP tool definitions → core/* (shared by both transports)
+   └─ stdio.ts                  # local MCP entry point for Claude Desktop / Claude Code
+```
+
+**Key rule:** the app API and the MCP server are both thin wrappers over `core/`. Agents can't bypass validation, and every change goes through the same audit log.
+
+---
+
+## 3. Data model (first version)
+
+```
+members         id, name, role (parent/child/pet…), color, sprite_key, birthday, active
+places          id, name, sprite_key, x, y                    # spots on the scene map
+activity_types  id, name, icon, default_place_id, animation   # "school", "work", "cooking", "church", "play"…
+activities      id, date, start_time, end_time, type_id, place_id,
+                title, note, mood (1–5), photo_url, created_by, source
+activity_members activity_id, member_id                         # who took part
+categories      id, name, kind (expense/income), icon, color, parent_id
+transactions    id, date, amount_cents, currency, category_id, member_id,
+                payee, note, activity_id (optional link to that day's event), source
+budgets         id, month (YYYY-MM), category_id, limit_cents
+savings_goals   id, name, target_cents, target_date, sprite_key (jar/piggy/house…), archived
+savings_entries id, goal_id, date, amount_cents (+deposit / −withdrawal), note, source
+audit_log       id, at, actor (member id or token name), source (app|mcp|import),
+                entity, entity_id, action, before_json, after_json
+settings        key, value                                      # currency, family name, week start…
+```
+
+Linking `transactions.activity_id` lets the scene show coins over the market when you bought groceries that day.
+
+---
+
+## 4. The pixel scene
+
+**Layout:** one fixed "neighbourhood" map (e.g. 320×180 base resolution, scaled ×3/×4) with places as hotspots: home, school, workplace, market, park, church, restaurant, and so on. Your sprites in `assets/places` fill these spots.
+
+**How a day becomes a scene (`dayScene.ts`):**
+1. Load the day's activities, sorted by time.
+2. Each member gets a path: home → place A (at A's start time) → place B → … → home.
+3. A **time scrubber** (06:00–22:00) drives the scene. Press play and avatars walk between places; drag it to jump.
+4. At a place, the member plays the activity's animation (sitting, cooking, running, praying…) and shows a speech-bubble icon.
+5. **Finance overlays:** coins pop up where money was spent, and the savings jar on the house shows this month's progress toward the main goal.
+6. **Mood / weather:** the sky tint follows time of day, and an optional weather or mood icon is set per day.
+
+**Other views:**
+- **Calendar:** month grid where each day is a tiny auto-generated thumbnail of its scene.
+- **Savings:** each goal is a jar or piggy bank that fills in pixel steps; a deposit plays a small coin animation.
+- **Budget:** pixel progress bars per category that turn yellow at 80% and red past 100%.
+
+**Asset pipeline:** keep editable sources in `assets/`, and export sprite sheets with a JSON atlas (Aseprite's "Export Sprite Sheet → JSON Array" works) into `public/sprites/`. `catalog.ts` maps names (`"dad_walk"`, `"place_school"`) to atlas frames, so swapping art never touches code. Missing sprites fall back to coloured placeholder boxes, so the app works before all the art is done.
+
+---
+
+## 5. App features (input via the app)
+
+- **Today:** quick-add activity (type, who, time, note, mood) and quick-add expense; the scene updates live.
+- **Calendar:** browse past days, edit or delete entries.
+- **Budget:** monthly budgets per category, transaction list with filters, month summary (spent / remaining / top categories).
+- **Savings:** goals, deposits and withdrawals, progress and projected completion date.
+- **Family:** members, colours, sprite choice.
+- **Settings:** currency, places, activity types, categories, API tokens for agents, export/import (JSON/CSV).
+
+---
+
+## 6. Agent / MCP access
+
+**Tools exposed (all validated by the shared Zod schemas, all audited with `source = "mcp"`):**
+
+| Tool | Purpose |
+|---|---|
+| `list_members`, `list_activity_types`, `list_categories` | So the agent can resolve names like "Mom" or "groceries" to IDs |
+| `log_activity` | "We went to the park 3–5pm with the kids" |
+| `update_activity`, `delete_activity` | Corrections |
+| `get_day` | Everything for a date (activities + spending), for summaries |
+| `log_expense` / `log_income` | "Spent 1,250 on groceries at the market" |
+| `update_transaction`, `delete_transaction` | Corrections |
+| `set_budget`, `get_month_summary` | "How much is left for food this month?" |
+| `add_savings_entry`, `list_goals`, `create_goal` | "Put 5,000 into the emergency fund" |
+| `search` | Free-text over notes, titles, and payees |
+
+Plus MCP **resources** such as `hesed://day/2026-11-10` and `hesed://month/2026-11` for read-only context, and a **prompt** `daily_journal` that turns a casual description of the day into structured activities and expenses.
+
+**Connecting:**
+- **Locally:** `claude mcp add hesed -- npx tsx mcp/stdio.ts` (Claude Code), or the equivalent entry in Claude Desktop's config. It writes directly to the local PGlite database.
+- **Netlify:** `https://<site>.netlify.app/mcp` with `Authorization: Bearer <token>`. Tokens are created in Settings, stored hashed, revocable, and named per agent so the audit log shows who did what. (Adding OAuth later would allow use as a claude.ai custom connector.)
+
+**Safety:** deletes require an explicit `confirm: true` argument, amounts are capped per call (configurable), and every change is reversible from the audit log ("undo last agent change").
+
+---
+
+## 7. Running locally
+
+```bash
+# one-time
+npm install
+npm run db:migrate        # creates ./.data/pglite
+npm run db:seed           # optional demo family + week
+
+# day to day
+npm run dev               # netlify dev → Vite app + functions at http://localhost:8888
+npm run mcp               # (optional) run the stdio MCP server by hand for testing
+```
+
+No Netlify account is needed for local use; `netlify-cli` is a dev dependency. The data lives in `./.data/` (git-ignored); back it up with `npm run export`.
+
+---
+
+## 8. Deploying to Netlify (later)
+
+1. Connect the GitHub repo to a Netlify site (build: `npm run build`, publish: `dist`, functions: `netlify/functions`).
+2. Add **Netlify DB** (Neon Postgres); it sets `NETLIFY_DATABASE_URL`, and `db/client.ts` switches to Neon automatically.
+3. Run migrations on deploy (`npm run db:migrate` in the build command).
+4. Set `SESSION_SECRET` in Netlify environment variables.
+5. Optional: move photo uploads to **Netlify Blobs**.
+6. Optional: migrate local data with `npm run export` locally, then `npm run import` against production.
+
+---
+
+## 9. Build phases
+
+| Phase | Deliverable | Done when |
+|---|---|---|
+| **0. Scaffold** | Vite+React+TS, netlify.toml, Drizzle + PGlite, lint/test (Vitest) | `npm run dev` shows a page and `/api/health` answers |
+| **1. Core + data** | `db/schema.ts`, migrations, seed, `core/*` with Zod + audit log, unit tests | Core functions are tested for activities, transactions, budgets, and goals |
+| **2. REST API + basic UI** | CRUD screens for activities, transactions, budgets, and goals (no pixels yet) | The family can log a full day by hand |
+| **3. MCP server** | `mcp/tools.ts`, stdio entry, `/mcp` function, token auth | Claude Code can log an expense and it appears in the app |
+| **4. Pixel scene v1** | Sprite loader, map, member walking, activity animations, time scrubber, using your assets | Today's entries play back as a scene |
+| **5. Finance visuals** | Savings jars, budget bars, coin pops, calendar thumbnails | Budget and savings pages are fully pixel-styled |
+| **6. Deploy** | Netlify site + Netlify DB + login + tokens | Reachable from phones; agents connect remotely |
+| **7. Nice-to-haves** | Installable on phones (PWA) with offline queue, photos, end-of-day summary, recurring expenses, CSV bank import | — |
+
+---
+
+## 10. Open questions for you
+
+1. **Family members:** who are they (names/roles), and do you already have a sprite per person in your assets?
+2. **Currency:** which currency (and do you ever need more than one)?
+3. **Places and activities:** which places and activity types matter most? This decides the map layout.
+4. **Assets:** tile/sprite size (16×16? 32×32?), and are they Aseprite files or PNG sheets? Any licences to respect if some are third-party packs?
+5. **Who logs in** once it's on Netlify: just parents, or kids too (read-only)?
