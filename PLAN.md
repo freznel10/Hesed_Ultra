@@ -262,7 +262,16 @@ Ellie and Rafa are 10 and 11, so the kids' screens stay simple but don't need to
 
 Placeholder rectangles in each member's colour are used until the cleaned sheets exist, so the code isn't blocked on art.
 
-## 12. Open questions
+## 12. Art made so far
 
-1. Are the originals on the T7 Shield higher quality or layered (Aseprite/PSD)? If so, use those instead of the JPG previews.
-2. Art for places (house, church, school, mall, office): already made, or still to do?
+**Places** (`tools/gen_places.py`, drawn in code, transparent PNGs in `assets/places/`, enlarged previews in `assets/places/preview/`):
+house, church (New Wine Alabang), school_miriam, school_ateneo, office, and malls: SM Marikina, SM Aura, Ayala Feliz, Up Town Center, Festival, Alabang Town Center. These are stylised impressions, not replicas, with no store logos. To change colours or details, or to add a mall to the `MALLS` list, edit the script and rerun it.
+
+**Characters** (`tools/prep_characters.py`): auto-converted from `assets/characters/reference/family-front.jpg` into native sprites, roughly 21×61 px each (`assets/characters/<name>_front.png`). Faces and Ellie's headphones need a hand touch-up in Aseprite or Piskel.
+
+**Scale:** buildings are 80–112 px tall, so on the town map the walking characters should be smaller sprites, about 24–32 px tall. Use the 60 px versions on profile and "today" cards, and portraits for dialogue and mood. The walk cycles still need to be made at the small size.
+
+## 13. Open questions
+
+1. Are the originals on the T7 Shield higher quality or layered (Aseprite/PSD)? If so, rerun the character script on those.
+2. Should mall visits record which mall (a list of malls), or just "mall" plus a note? The plan assumes a list of malls.
