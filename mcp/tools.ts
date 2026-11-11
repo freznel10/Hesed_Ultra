@@ -97,11 +97,70 @@ export function buildMcpServer(svc: Service) {
   tool("set_budget", "Set the monthly limit for a spending category. A limit of 0 removes the budget.", { month, category: z.string(), limit: z.number().min(0).describe("Monthly limit in pesos") }, (a) =>
     svc.setBudget({ month: a.month, category: a.category, limitCents: toCents(a.limit) }));
 
-  tool("list_goals", "Savings goals with progress.", {}, () => svc.goals(), true);
-  tool("create_goal", "Create a savings goal.", { name: z.string(), target: pesos, target_date: date.optional() }, (a) =>
-    svc.createGoal({ name: a.name, targetCents: toCents(a.target), targetDate: a.target_date }));
+  tool("list_goals", "Savings goals with progress, how much came from sweeps, and whether the monthly plan is on pace for the target date.", {}, () => svc.goals(), true);
+  tool("create_goal", "Create a savings goal, optionally with its planned monthly contribution.", { name: z.string(), target: pesos, target_date: date.optional(), monthly: pesos.optional().describe("Planned monthly contribution in pesos") }, (a) =>
+    svc.createGoal({ name: a.name, targetCents: toCents(a.target), targetDate: a.target_date, monthlyCents: a.monthly === undefined ? undefined : toCents(a.monthly) }));
+  tool("update_goal", "Change a savings goal: name, target, target date, planned monthly contribution, or archive it. Send only what changes; null clears a date or monthly plan.", {
+    goal_id: z.number().int(), name: z.string().optional(), target: pesos.optional(),
+    target_date: date.nullable().optional(), monthly: z.number().positive().nullable().optional().describe("Pesos per month, or null to clear"), archived: z.boolean().optional(),
+  }, (a) => svc.updateGoal(a.goal_id, {
+    name: a.name, targetCents: a.target === undefined ? undefined : toCents(a.target), targetDate: a.target_date,
+    monthlyCents: a.monthly === undefined || a.monthly === null ? a.monthly : toCents(a.monthly), archived: a.archived,
+  }));
+
+  // ---- MoneyWiz budgets and sweeping
+  tool("import_moneywiz_budgets", "Save MoneyWiz budgets into Hesed Ultra. Pass data.records from MoneyWiz read_financial_data (domain \"budgets\") exactly as returned. Safe to repeat: existing months are updated.", {
+    records: z.array(z.record(z.string(), z.any())).describe("data.records from moneywiz_read_financial_data, unchanged"),
+  }, (a) => svc.importMoneyWizBudgets(a.records as never));
+  tool("import_moneywiz_transactions", "Save MoneyWiz transactions into Hesed Ultra. Pass evidence.rows and evidence.names from MoneyWiz list_transactions or inspect_result exactly as returned. Safe to repeat: rows already imported are updated, not duplicated.", {
+    rows: z.array(z.record(z.string(), z.any())).describe("evidence.rows (or rows from inspect_result), unchanged"),
+    names: z.object({ category: z.record(z.string(), z.string()).optional(), payee: z.record(z.string(), z.string()).optional(), account: z.record(z.string(), z.string()).optional() }).describe("evidence.names, unchanged"),
+  }, (a) => svc.importMoneyWizTransactions(a.rows as never, a.names));
+  tool("get_budget_month", "MoneyWiz budgets for a month: available, used, left over, already swept, and what can still be swept.", { month }, (a) => svc.budgetMonth(a.month), true);
+  tool("get_leftovers", "Leftover budget money from finished months that has not been swept or left alone yet.", {}, () => svc.pendingLeftovers(), true);
+  tool("sweep_leftover", "Move leftover money from a finished month's budget into a savings goal. Only do this when the user asks. Omit amount to sweep all that is left.", {
+    budget_id: z.number().int().describe("id from get_leftovers or get_budget_month"), goal_id: z.number().int(), amount: pesos.optional(), note: z.string().optional(),
+  }, (a) => svc.sweep({ budgetPeriodId: a.budget_id, goalId: a.goal_id, amountCents: a.amount === undefined ? undefined : toCents(a.amount), note: a.note ?? "" }));
+  tool("undo_sweep", "Take back a sweep: the money returns to \"left over\" and leaves the goal.", { sweep_id: z.number().int(), confirm }, (a) => svc.undoSweep(a.sweep_id));
   tool("add_savings", "Put money into a savings goal, or take it out with a negative amount.", { goal_id: z.number().int(), date, amount: z.number().describe("Pesos. Positive = deposit, negative = withdrawal"), note: z.string().optional() }, (a) =>
     svc.addSavingsEntry({ goalId: a.goal_id, date: a.date, amountCents: toCents(a.amount), note: a.note ?? "" }));
 
+  server.registerPrompt(
+    "sync_moneywiz",
+    {
+      title: "Sync from MoneyWiz",
+      description: "Copy budgets and transactions from MoneyWiz (on this Mac) into Hesed Ultra.",
+      argsSchema: { months: z.string().optional().describe("How many months back, including this one (default 3)") },
+    },
+    ({ months }) => ({ messages: [{ role: "user" as const, content: { type: "text" as const, text: syncInstructions(Number(months) || 3) } }] }),
+  );
+
   return server;
+}
+
+/** Step-by-step instructions for an agent that has both the MoneyWiz and Hesed Ultra tools. */
+export function syncInstructions(months = 3, today = new Date()) {
+  const ym = (offset: number) => {
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  };
+  // Manila midnight on the 1st, in UTC, is 16:00Z on the last day of the previous month.
+  const bound = (m: string) => {
+    const [y, mo] = m.split("-").map(Number);
+    return new Date(Date.UTC(y, mo - 1, 1) - 8 * 3600_000).toISOString().replace(".000Z", "Z");
+  };
+  const list = Array.from({ length: months }, (_, i) => ym(i - months + 1));
+  const ranges = list.map((m) => `- ${m}: start ${bound(m)}, end ${bound(ym(list.indexOf(m) - months + 2))}`).join("\n");
+  return `Sync MoneyWiz into Hesed Ultra for these months (Manila time; end is exclusive):
+${ranges}
+
+Rules: MoneyWiz must be open on this Mac. Call MoneyWiz tools ONE AT A TIME, never in parallel (parallel calls come back empty). Pass MoneyWiz output to the Hesed Ultra tools unchanged; do not convert amounts or dates yourself.
+
+1. Call moneywiz_open_context. Keep the contextID.
+2. Budgets, for each month above: call moneywiz_read_financial_data with request {domain: "budgets", accountIDs: null, start, end, includeArchived: false, limit: 100, offset: 0}. If data.nextOffset is set, call again with that offset. Pass every data.records array to hesed import_moneywiz_budgets.
+3. Transactions, for each month above: call moneywiz_list_transactions with limit 100 and query {start, end, timeZone: "Asia/Manila", filter: {operation: "all", field: null, values: [], children: []}}. Pass evidence.rows and evidence.names to hesed import_moneywiz_transactions. While evidence.coverage is "more_rows", call moneywiz_inspect_result with resultID = evidence.resultID, groupID null, cursor = the nextCursor, limit 100, and import those rows and names too.
+4. Call moneywiz_release_context.
+5. Call hesed get_leftovers and report, in pesos: each month synced (budgets created/updated, transactions created/updated), then the leftovers waiting to be swept. Do not sweep anything unless the user asks.
+
+If a MoneyWiz call fails or a query shape is rejected, stop and show the exact error rather than guessing.`;
 }

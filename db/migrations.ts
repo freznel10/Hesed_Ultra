@@ -127,4 +127,42 @@ export const MIGRATIONS: { id: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: "0004_moneywiz_budgets_and_sweeps",
+    sql: `
+      CREATE TABLE budget_periods (
+        id SERIAL PRIMARY KEY,
+        source TEXT NOT NULL DEFAULT 'moneywiz',
+        external_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        month TEXT NOT NULL CHECK (month ~ '^[0-9]{4}-[0-9]{2}$'),
+        period_start TIMESTAMPTZ NOT NULL,
+        period_end TIMESTAMPTZ NOT NULL,
+        planned_cents INTEGER NOT NULL,
+        available_cents INTEGER NOT NULL,
+        used_cents INTEGER NOT NULL,
+        remaining_cents INTEGER NOT NULL,
+        carryover BOOLEAN NOT NULL DEFAULT FALSE,
+        categories JSONB NOT NULL DEFAULT '[]',
+        left_alone BOOLEAN NOT NULL DEFAULT FALSE,
+        synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (source, external_id, month)
+      );
+      CREATE INDEX budget_periods_month ON budget_periods(month);
+      CREATE TABLE sweeps (
+        id SERIAL PRIMARY KEY,
+        budget_period_id INTEGER NOT NULL REFERENCES budget_periods(id),
+        goal_id INTEGER NOT NULL REFERENCES savings_goals(id),
+        savings_entry_id INTEGER NOT NULL REFERENCES savings_entries(id),
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        note TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      ALTER TABLE savings_goals ADD COLUMN monthly_cents INTEGER CHECK (monthly_cents IS NULL OR monthly_cents > 0);
+      ALTER TABLE transactions ADD COLUMN external_id TEXT;
+      CREATE UNIQUE INDEX transactions_external_id ON transactions(external_id) WHERE external_id IS NOT NULL;
+    `,
+  },
 ];

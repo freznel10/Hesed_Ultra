@@ -62,6 +62,8 @@ export const GoalInput = z.object({
   name: z.string().trim().min(1).max(80),
   targetCents: centavos,
   targetDate: day.optional(),
+  /** Planned monthly contribution. */
+  monthlyCents: centavos.optional(),
 });
 export type GoalInput = z.input<typeof GoalInput>;
 

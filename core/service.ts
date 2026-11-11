@@ -5,6 +5,8 @@ import * as activities from "./activities";
 import { recentChanges } from "./audit";
 import type { Ctx } from "./context";
 import * as finance from "./finance";
+import * as mw from "./moneywiz";
+import * as sw from "./sweeps";
 import { can, type User } from "./permissions";
 import type { ActivityInput, BudgetInput, GoalInput, SavingsEntryInput, TransactionInput } from "./schemas";
 
@@ -108,6 +110,46 @@ export function service(db: Db, user: User, source: Ctx["source"]) {
     async addSavingsEntry(input: SavingsEntryInput) {
       can.parentOnly(user, "move savings");
       return finance.addSavingsEntry(ctx, input);
+    },
+
+    async updateGoal(id: number, input: sw.GoalUpdate) {
+      can.parentOnly(user, "change savings goals");
+      return sw.updateGoal(ctx, id, input);
+    },
+
+    // ---- MoneyWiz budgets and sweeping (parents only)
+    async budgetMonth(month: string) {
+      can.parentOnly(user, "see the family budget");
+      return sw.budgetMonth(db, month);
+    },
+    async budgetOverview(month: string) {
+      can.parentOnly(user, "see the family budget");
+      const [current, pending, history, lastSync] = await Promise.all([sw.budgetMonth(db, month), sw.pendingLeftovers(db), sw.sweepHistory(db), mw.lastSync(db)]);
+      return { current, pending, history, lastSync };
+    },
+    async pendingLeftovers() {
+      can.parentOnly(user, "see the family budget");
+      return sw.pendingLeftovers(db);
+    },
+    async sweep(input: sw.SweepInput) {
+      can.parentOnly(user, "sweep leftovers");
+      return sw.sweep(ctx, input);
+    },
+    async undoSweep(id: number) {
+      can.parentOnly(user, "undo sweeps");
+      return sw.undoSweep(ctx, id);
+    },
+    async leaveAlone(budgetPeriodId: number, value: boolean) {
+      can.parentOnly(user, "change leftovers");
+      return sw.leaveAlone(ctx, budgetPeriodId, value);
+    },
+    async importMoneyWizBudgets(records: mw.MoneyWizBudget[]) {
+      can.parentOnly(user, "import from MoneyWiz");
+      return mw.importBudgets({ ...ctx, source: "import" }, records);
+    },
+    async importMoneyWizTransactions(rows: mw.MoneyWizRow[], names: mw.MoneyWizNames) {
+      can.parentOnly(user, "import from MoneyWiz");
+      return mw.importTransactions({ ...ctx, source: "import" }, rows, names);
     },
 
     async changes(limit?: number) {

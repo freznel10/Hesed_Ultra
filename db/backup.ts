@@ -16,7 +16,7 @@ import { type Db, getDb, schema } from "./client";
 const TABLES = [
   schema.members, schema.places, schema.activityTypes, schema.categories,
   schema.activities, schema.activityMembers, schema.transactions, schema.budgets,
-  schema.savingsGoals, schema.savingsEntries, schema.auditLog, schema.apiTokens,
+  schema.savingsGoals, schema.savingsEntries, schema.budgetPeriods, schema.sweeps, schema.auditLog, schema.apiTokens,
 ] as const;
 const REFERENCE = new Set(["members", "places", "activity_types", "categories"]);
 

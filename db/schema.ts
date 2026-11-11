@@ -70,6 +70,8 @@ export const transactions = pgTable("transactions", {
   payee: text("payee").notNull().default(""),
   note: text("note").notNull().default(""),
   activityId: integer("activity_id").references(() => activities.id, { onDelete: "set null" }),
+  /** Set for rows imported from MoneyWiz, so re-importing updates instead of duplicating. */
+  externalId: text("external_id"),
   source: text("source").notNull(),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
@@ -87,6 +89,8 @@ export const savingsGoals = pgTable("savings_goals", {
   name: text("name").notNull(),
   targetCents: integer("target_cents").notNull(),
   targetDate: date("target_date", { mode: "string" }),
+  /** Planned monthly contribution, from the savings plan. */
+  monthlyCents: integer("monthly_cents"),
   archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
@@ -122,4 +126,37 @@ export const apiTokens = pgTable("api_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "string" }),
   revoked: boolean("revoked").notNull().default(false),
+});
+
+/** One MoneyWiz budget for one month, as last synced. */
+export const budgetPeriods = pgTable("budget_periods", {
+  id: serial("id").primaryKey(),
+  source: text("source").notNull().default("moneywiz"),
+  externalId: text("external_id").notNull(),
+  name: text("name").notNull(),
+  month: text("month").notNull(),
+  periodStart: timestamp("period_start", { withTimezone: true, mode: "string" }).notNull(),
+  periodEnd: timestamp("period_end", { withTimezone: true, mode: "string" }).notNull(),
+  plannedCents: integer("planned_cents").notNull(),
+  availableCents: integer("available_cents").notNull(),
+  usedCents: integer("used_cents").notNull(),
+  remainingCents: integer("remaining_cents").notNull(),
+  carryover: boolean("carryover").notNull().default(false),
+  categories: jsonb("categories").$type<string[]>().notNull().default([]),
+  /** The family chose not to sweep this leftover. */
+  leftAlone: boolean("left_alone").notNull().default(false),
+  syncedAt: timestamp("synced_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
+/** Leftover budget moved into a savings goal. Each sweep owns the savings entry it created. */
+export const sweeps = pgTable("sweeps", {
+  id: serial("id").primaryKey(),
+  budgetPeriodId: integer("budget_period_id").notNull().references(() => budgetPeriods.id),
+  goalId: integer("goal_id").notNull().references(() => savingsGoals.id),
+  savingsEntryId: integer("savings_entry_id").notNull().references(() => savingsEntries.id),
+  amountCents: integer("amount_cents").notNull(),
+  note: text("note").notNull().default(""),
+  source: text("source").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });

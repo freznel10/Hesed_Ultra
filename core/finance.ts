@@ -4,6 +4,7 @@ import * as schema from "../db/schema";
 import { record } from "./audit";
 import { type Ctx, InputError, lookup } from "./context";
 import { formatPHP } from "./money";
+import { pace, type Pace } from "./sweeps";
 import { BudgetInput, Day, GoalInput, Month, SavingsEntryInput, TransactionInput } from "./schemas";
 
 type Reader = Pick<Db, "select">;
@@ -195,6 +196,9 @@ export type Goal = typeof schema.savingsGoals.$inferSelect & {
   remainingCents: number;
   /** 0–100, capped at 100. */
   percent: number;
+  /** How much of savedCents came from sweeping budget leftovers. */
+  sweptCents: number;
+  pace: Pace;
 };
 
 export async function createGoal(ctx: Ctx, raw: GoalInput) {
@@ -202,7 +206,7 @@ export async function createGoal(ctx: Ctx, raw: GoalInput) {
   return ctx.db.transaction(async (tx) => {
     const [goal] = await tx
       .insert(schema.savingsGoals)
-      .values({ name: input.name, targetCents: input.targetCents, targetDate: input.targetDate ?? null })
+      .values({ name: input.name, targetCents: input.targetCents, targetDate: input.targetDate ?? null, monthlyCents: input.monthlyCents ?? null })
       .returning();
     await record(tx, ctx, "savings_goal", goal.id, "create", null, goal);
     return goal;
@@ -237,16 +241,22 @@ export async function addSavingsEntry(ctx: Ctx, raw: SavingsEntryInput) {
   });
 }
 
-export async function listGoals(db: Db): Promise<Goal[]> {
+export async function listGoals(db: Db, today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date())): Promise<Goal[]> {
   const goals = await db.select().from(schema.savingsGoals).where(eq(schema.savingsGoals.archived, false)).orderBy(asc(schema.savingsGoals.id));
   return Promise.all(
     goals.map(async (g) => {
       const savedCents = await savedFor(db, g.id);
+      const [{ swept }] = await db
+        .select({ swept: sql<number>`coalesce(sum(${schema.sweeps.amountCents}), 0)::int` })
+        .from(schema.sweeps)
+        .where(eq(schema.sweeps.goalId, g.id));
       return {
         ...g,
         savedCents,
         remainingCents: Math.max(0, g.targetCents - savedCents),
         percent: Math.min(100, Math.floor((savedCents / g.targetCents) * 100)),
+        sweptCents: swept,
+        pace: pace(g, savedCents, today),
       };
     }),
   );

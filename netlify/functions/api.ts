@@ -62,6 +62,15 @@ const routes: [method: string, pattern: RegExp, handler: Handler][] = [
   ["POST", /^\/goals$/, ({ svc, body }) => svc.createGoal(body)],
   ["POST", /^\/savings$/, ({ svc, body }) => svc.addSavingsEntry(body)],
   ["GET", /^\/changes$/, ({ svc }) => svc.changes(100)],
+  ["PUT", /^\/goals\/(\d+)$/, ({ svc, body, params }) => svc.updateGoal(num(params[0]), body)],
+  ["GET", /^\/budget\/([\d-]+)$/, ({ svc, params }) => svc.budgetOverview(params[0])],
+  ["POST", /^\/sweeps$/, ({ svc, body }) => svc.sweep(body)],
+  ["DELETE", /^\/sweeps\/(\d+)$/, ({ svc, params }) => svc.undoSweep(num(params[0]))],
+  ["PUT", /^\/budget-periods\/(\d+)\/leave-alone$/, ({ svc, body, params }) => svc.leaveAlone(num(params[0]), Boolean(body?.value))],
+  ["POST", /^\/import\/moneywiz$/, async ({ svc, body }) => ({
+    budgets: Array.isArray(body?.budgets) ? await svc.importMoneyWizBudgets(body.budgets) : null,
+    transactions: Array.isArray(body?.rows) ? await svc.importMoneyWizTransactions(body.rows, body.names ?? {}) : null,
+  })],
   ["PUT", /^\/members\/([\w-]+)\/pin$/, async ({ db, user, body, params }) => {
     if (params[0] !== user.key) can.parentOnly(user, "set someone else's PIN");
     await setPin(db, params[0], String(body?.pin ?? ""));

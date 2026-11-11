@@ -70,10 +70,41 @@ describe("MCP tools", () => {
     expect((await call("delete_activity", { id: 99, confirm: true })).text).toMatch(/No activity/);
   });
 
+  it("imports MoneyWiz data and sweeps through tools", async () => {
+    const { sampleBudgets, sampleNames, sampleRows } = await import("../db/fixtures/moneywiz-sample");
+    const b = await call("import_moneywiz_budgets", { records: [...sampleBudgets("2026-10"), ...sampleBudgets("2026-11")] });
+    expect(b.data).toMatchObject({ created: 12, months: ["2026-10", "2026-11"] });
+    const t = await call("import_moneywiz_transactions", { rows: sampleRows, names: sampleNames });
+    expect(t.data).toMatchObject({ created: 10 });
+    const left = await call("get_leftovers");
+    expect(left.data.total).toBe("₱18,284.20"); // 3,549.25 + 9,837.70 + 1,209.50 + 3,687.75
+    const g = await call("create_goal", { name: "Emergency fund", target: 300000, target_date: "2027-10-31", monthly: 20000 });
+    const groceries = left.data.budgets.find((x: { name: string }) => x.name === "Groceries");
+    const swept = await call("sweep_leftover", { budget_id: groceries.id, goal_id: g.data.id });
+    expect(swept.data).toMatchObject({ amount: "₱3,549.25", goal: "Emergency fund", left: "₱0.00" });
+    const goals = await call("list_goals");
+    expect(goals.data[0]).toMatchObject({ saved: "₱3,549.25", swept: "₱3,549.25", monthly: "₱20,000.00" });
+    expect(goals.data[0].pace).toMatchObject({ status: "behind" });
+    expect((await call("update_goal", { goal_id: g.data.id, monthly: 25000 })).data).toMatchObject({ monthly: "₱25,000.00" });
+    expect((await call("undo_sweep", { sweep_id: swept.data.id, confirm: true })).isError).toBe(false);
+  });
+
+  it("offers a sync prompt with the right Manila month bounds", async () => {
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((p) => p.name)).toContain("sync_moneywiz");
+    const { syncInstructions } = await import("./tools");
+    const text = syncInstructions(2, new Date("2026-11-11T03:00:00Z"));
+    expect(text).toContain("- 2026-10: start 2026-09-30T16:00:00Z, end 2026-10-31T16:00:00Z");
+    expect(text).toContain("- 2026-11: start 2026-10-31T16:00:00Z, end 2026-11-30T16:00:00Z");
+    expect(syncInstructions(1, new Date("2026-12-15T00:00:00Z"))).toContain("- 2026-12: start 2026-11-30T16:00:00Z, end 2026-12-31T16:00:00Z");
+  });
+
   it("applies a child's limits to an agent acting for a child", async () => {
     await connect({ key: "ellie", role: "child" });
     expect((await call("get_month_summary", { month: "2026-11" })).text).toMatch(/Only parents/);
     expect((await call("log_expense", { date: "2026-11-08", amount: 50, category: "allowance", member: "rafa" })).text).toMatch(/your own spending/);
     expect((await call("log_expense", { date: "2026-11-08", amount: 50, category: "allowance", member: "ellie" })).isError).toBe(false);
+    expect((await call("import_moneywiz_budgets", { records: [] })).text).toMatch(/Only parents/);
+    expect((await call("get_leftovers")).text).toMatch(/Only parents/);
   });
 });
