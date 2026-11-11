@@ -9,19 +9,17 @@ The copying is done by Claude on your Mac, because only the Mac can reach MoneyW
 MoneyWiz's connector is installed in the **Claude desktop app**, so the sync runs there. Hesed Ultra is added to the desktop app alongside it.
 
 1. Start Hesed Ultra and leave it running: `npm run dev` in the project folder.
-2. Find your Node path. In Terminal, run `which node`. It prints something like `/opt/homebrew/bin/node`.
-3. In the Claude desktop app, open **Settings → Developer → Edit Config**. That opens `~/Library/Application Support/Claude/claude_desktop_config.json`. Add a `hesed` entry inside `"mcpServers"`, using your Node path from step 2. Keep any entries already there:
-   ```json
-   {
-     "mcpServers": {
-       "hesed": {
-         "command": "/opt/homebrew/bin/node",
-         "args": ["/Volumes/T7 Shield/Projects/Hesed_Ultra/mcp/bridge.mjs"]
-       }
-     }
-   }
+2. In a second Terminal window, in the project folder, run:
+   ```bash
+   npm run desktop:add
    ```
-4. Quit the Claude desktop app completely (Cmd+Q) and open it again. In a new chat, the tools menu should list both **hesed** and **MoneyWiz**.
+   This adds Hesed Ultra to the Claude desktop app's config file (`~/Library/Application Support/Claude/claude_desktop_config.json`). It keeps everything already there, saves a backup first, and fills in your Node path for you. Running it again is harmless.
+3. Quit the Claude desktop app completely (Cmd+Q) and open it again. In a new chat, the tools menu should list both **hesed** and **MoneyWiz**.
+
+You can also edit that file by hand, if your desktop app shows **Settings → Developer → Edit Config**. Add this inside `"mcpServers"`, with the path from `which node`:
+```json
+"hesed": { "command": "/opt/homebrew/bin/node", "args": ["/Volumes/T7 Shield/Projects/Hesed_Ultra/mcp/bridge.mjs"] }
+```
 
 `mcp/bridge.mjs` passes messages between the desktop app and the running Hesed Ultra at `http://localhost:5173/mcp`. If the app isn't running, Claude gets the message "Start it with npm run dev".
 

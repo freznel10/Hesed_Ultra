@@ -16,7 +16,8 @@
     "dev:netlify": "netlify dev",
     "export": "tsx db/backup.ts export",
     "import": "tsx db/backup.ts import",
-    "demo": "PGLITE_DIR=.data/demo tsx db/demo.ts && PGLITE_DIR=.data/demo vite"
+    "demo": "PGLITE_DIR=.data/demo tsx db/demo.ts && PGLITE_DIR=.data/demo vite",
+    "desktop:add": "node tools/add-to-claude-desktop.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
