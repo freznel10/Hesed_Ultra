@@ -92,6 +92,7 @@ describe("MCP tools", () => {
   it("offers a sync prompt with the right Manila month bounds", async () => {
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name)).toContain("sync_moneywiz");
+    expect((await call("get_sync_instructions", { months: 2 })).data.instructions).toContain("moneywiz_open_context");
     const { syncInstructions } = await import("./tools");
     const text = syncInstructions(2, new Date("2026-11-11T03:00:00Z"));
     expect(text).toContain("- 2026-10: start 2026-09-30T16:00:00Z, end 2026-10-31T16:00:00Z");

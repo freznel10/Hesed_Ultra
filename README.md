@@ -47,11 +47,11 @@ While the app is running:
 claude mcp add --transport http hesed http://localhost:5173/mcp
 ```
 
-To pull in MoneyWiz, type `/mcp__hesed__sync_moneywiz` in a Claude Code session on the Mac that also has the MoneyWiz connector ([details](docs/moneywiz-sync.md)).
+To pull in MoneyWiz, use the Claude desktop app, where MoneyWiz's connector lives. Add Hesed Ultra to it through `mcp/bridge.mjs`, then ask "Sync MoneyWiz into Hesed Ultra for the last 12 months" ([setup](docs/moneywiz-sync.md)).
 
 Then ask things like "what did October leave unspent?", "sweep the groceries leftover into the Family trip", "am I on pace for the emergency fund?", or "log that we had dinner at Festival Mall tonight, ₱2,350". Locally the agent acts as Freznel (change with `HESED_MCP_MEMBER`). Its changes appear in Settings → Recent changes as "claude (for freznel)".
 
-Tools: budgets and savings: `import_moneywiz_budgets`, `import_moneywiz_transactions`, `get_budget_month`, `get_leftovers`, `sweep_leftover`, `undo_sweep`, `list_goals`, `create_goal`, `update_goal`, `add_savings`. Day log and spending: `get_reference`, `get_day`, `get_calendar`, `log_activity`, `update_activity`, `delete_activity`, `log_expense`, `log_income`, `update_transaction`, `delete_transaction`, `get_month_summary`, `list_month_transactions`, `set_budget`. Prompt: `sync_moneywiz`.
+Tools: budgets and savings: `import_moneywiz_budgets`, `import_moneywiz_transactions`, `get_budget_month`, `get_leftovers`, `sweep_leftover`, `undo_sweep`, `list_goals`, `create_goal`, `update_goal`, `add_savings`. Day log and spending: `get_reference`, `get_day`, `get_calendar`, `log_activity`, `update_activity`, `delete_activity`, `log_expense`, `log_income`, `update_transaction`, `delete_transaction`, `get_month_summary`, `list_month_transactions`, `set_budget`. `get_sync_instructions`. Prompt: `sync_moneywiz`.
 
 ## Put it online (Netlify)
 

@@ -125,6 +125,12 @@ export function buildMcpServer(svc: Service) {
   tool("add_savings", "Put money into a savings goal, or take it out with a negative amount.", { goal_id: z.number().int(), date, amount: z.number().describe("Pesos. Positive = deposit, negative = withdrawal"), note: z.string().optional() }, (a) =>
     svc.addSavingsEntry({ goalId: a.goal_id, date: a.date, amountCents: toCents(a.amount), note: a.note ?? "" }));
 
+  // Same text as the sync_moneywiz prompt, as a tool: apps that do not show MCP prompts
+  // (or a plain "sync MoneyWiz" request) can fetch the steps this way.
+  tool("get_sync_instructions", "Step-by-step instructions to copy MoneyWiz budgets and transactions into Hesed Ultra. Call this when asked to sync MoneyWiz, then follow the steps exactly using the MoneyWiz tools.", {
+    months: z.number().int().min(1).max(24).optional().describe("How many months back, including this one (default 3)"),
+  }, async (a) => ({ instructions: syncInstructions(a.months ?? 3) }), true);
+
   server.registerPrompt(
     "sync_moneywiz",
     {

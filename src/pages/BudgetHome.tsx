@@ -155,9 +155,7 @@ export default function BudgetHome({ ctx }: { ctx: AppContext }) {
       {data && !data.lastSync && (
         <div className="panel">
           <h3>No MoneyWiz data yet</h3>
-          <p>Budgets come from MoneyWiz on your Mac. With this app running, open Claude Code on the Mac and run:</p>
-          <pre>claude mcp add --transport http hesed http://localhost:5173/mcp</pre>
-          <p>Then, in a Claude Code session that also has the MoneyWiz connector, type <code>/mcp__hesed__sync_moneywiz</code>. See <code>docs/moneywiz-sync.md</code> for details.</p>
+          <p>Budgets come from MoneyWiz on your Mac. Add this app to the Claude desktop app (where MoneyWiz is connected) by following <code>docs/moneywiz-sync.md</code>. Then, with this app and MoneyWiz open, ask Claude: "Sync MoneyWiz into Hesed Ultra for the last 12 months."</p>
         </div>
       )}
 
