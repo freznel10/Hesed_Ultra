@@ -16,12 +16,34 @@ export type Transaction = {
 };
 export type Day = { date: string; activities: Activity[]; transactions: Transaction[]; spentCents: number };
 export type CalendarDay = { date: string; activities: { type: string; place: string | null; members: string[] }[]; spentCents: number };
-export type BudgetLine = {
+export type CategoryLine = {
   category: string; name: string; spentCents: number; limitCents: number | null;
   remainingCents: number | null; status: "none" | "ok" | "warning" | "over";
 };
-export type MonthSummary = { month: string; incomeCents: number; spentCents: number; netCents: number; categories: BudgetLine[] };
-export type Goal = { id: number; name: string; targetCents: number; targetDate: string | null; savedCents: number; remainingCents: number; percent: number };
+export type MonthSummary = { month: string; incomeCents: number; spentCents: number; netCents: number; categories: CategoryLine[] };
+export type Pace = { monthsLeft: number | null; neededPerMonthCents: number | null; projectedMonth: string | null; status: "done" | "on_track" | "behind" | "no_plan" };
+export type Goal = {
+  id: number; name: string; targetCents: number; targetDate: string | null; monthlyCents: number | null;
+  savedCents: number; remainingCents: number; percent: number; sweptCents: number; pace: Pace;
+};
+export type BudgetLine = {
+  id: number; externalId: string; name: string; month: string; periodStart: string; periodEnd: string;
+  plannedCents: number; availableCents: number; usedCents: number; remainingCents: number; carryover: boolean;
+  categories: string[]; leftAlone: boolean; syncedAt: string;
+  sweptCents: number; sweepableCents: number; ended: boolean; status: "ok" | "low" | "over";
+  sweeps: { id: number; goalId: number; goal: string; amountCents: number; createdAt: string }[];
+};
+export type BudgetMonth = {
+  month: string; ended: boolean; availableCents: number; usedCents: number; leftoverCents: number;
+  overCents: number; sweptCents: number; sweepableCents: number; budgets: BudgetLine[];
+};
+export type BudgetOverview = {
+  current: BudgetMonth;
+  pending: { totalCents: number; budgets: BudgetLine[] };
+  history: { month: string; sweptCents: number }[];
+  lastSync: string | null;
+};
+export type GoalUpdate = { name?: string; targetCents?: number; targetDate?: string | null; monthlyCents?: number | null; archived?: boolean };
 export type Change = { id: number; at: string; actor: string; source: string; entity: string; entityId: number; action: string };
 export type Token = { id: number; name: string; member: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
 export type Session = { loginRequired: boolean; user: User | null; members: Member[] };
@@ -71,7 +93,12 @@ export const api = {
   month: (month: string) => call<{ summary: MonthSummary | null; transactions: Transaction[] }>("GET", `/month/${month}`),
   setBudget: (month: string, category: string, limitCents: number) => call("PUT", "/budgets", { month, category, limitCents }),
   goals: () => call<Goal[]>("GET", "/goals"),
-  createGoal: (name: string, targetCents: number, targetDate?: string) => call<Goal>("POST", "/goals", { name, targetCents, targetDate }),
+  createGoal: (name: string, targetCents: number, targetDate?: string, monthlyCents?: number) => call<Goal>("POST", "/goals", { name, targetCents, targetDate, monthlyCents }),
+  updateGoal: (id: number, update: GoalUpdate) => call<Goal>("PUT", `/goals/${id}`, update),
+  budget: (month: string) => call<BudgetOverview>("GET", `/budget/${month}`),
+  sweep: (budgetPeriodId: number, goalId: number, amountCents?: number, note = "") => call("POST", "/sweeps", { budgetPeriodId, goalId, amountCents, note }),
+  undoSweep: (id: number) => call("DELETE", `/sweeps/${id}`),
+  leaveAlone: (budgetPeriodId: number, value: boolean) => call("PUT", `/budget-periods/${budgetPeriodId}/leave-alone`, { value }),
   addSavings: (goalId: number, date: string, amountCents: number, note = "") => call("POST", "/savings", { goalId, date, amountCents, note }),
   changes: () => call<Change[]>("GET", "/changes"),
   setPin: (member: string, pin: string) => call("PUT", `/members/${member}/pin`, { pin }),

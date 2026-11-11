@@ -1,18 +1,19 @@
 # Hesed Ultra
 
-Our family's day in pixel art, plus budgeting and savings in pesos. The family and Claude (or other agents) can both add to it.
+Our family budget and savings plan, plus our day in pixel art. Budgets come from MoneyWiz; what a month leaves unspent can be swept into savings goals. The family and Claude (or other agents) can both add to it.
 
-![The day scene](docs/scene.png)
+![Budget](docs/budget.png)
 
 ## What it does
 
-- **Today:** log what everyone did and what was spent. The scene plays the day back: the family walks between home, church, school, the office and the malls, with spending shown above the place it happened.
+- **Budget** (home for parents): this month's MoneyWiz budgets as block bars (spent, over, left, swept). Once a month ends, leftovers show up under **Ready to sweep**; sweep them into a goal by hand, or leave them. See [docs/moneywiz-sync.md](docs/moneywiz-sync.md).
+- **Savings:** each goal is a jar filling up, gold for money saved directly and teal for money swept from budgets, with its monthly plan and whether it is on pace for its target date.
+- **Spending:** income, spending and each category for the month (from MoneyWiz and from the app).
+- **Family day:** log what everyone did and what was spent. The scene plays the day back: the family walks between home, church, school, the office and the malls, with spending shown above the place it happened.
 - **Calendar:** each day shows the places visited, who was active, and what was spent.
-- **Money:** monthly budgets per category with progress bars, income, spending and what is left.
-- **Savings:** goals shown as jars that fill up.
 - **Settings:** PINs, agent tokens, and a log of every change and who made it.
 
-Parents (Freznel, Diane) can do everything. Children (Ellie, Rafa) can log their own activities and spending and see the family day and savings goals, but not budgets, settings or other people's spending.
+Parents (Freznel, Diane) can do everything. Children (Ellie, Rafa) can log their own activities and spending and see the family day and savings goals, but not budgets, sweeps, settings or other people's spending.
 
 ## Run it on your computer
 
@@ -29,6 +30,7 @@ Data is stored in `.data/pglite` inside the project folder (not committed to git
 | Command | What it does |
 |---|---|
 | `npm run dev` | App, API and agent endpoint on http://localhost:5173 |
+| `npm run demo` | Same, on a separate database filled with made-up MoneyWiz data |
 | `npm test` | All tests |
 | `npm run typecheck` | TypeScript check |
 | `npm run export -- backup.json` | Save all data to one file (keep it private: it holds PIN and token hashes) |
@@ -45,9 +47,11 @@ While the app is running:
 claude mcp add --transport http hesed http://localhost:5173/mcp
 ```
 
-Then ask things like "log that we had dinner at Festival Mall tonight, ₱2,350" or "how much is left for groceries this month?". Locally the agent acts as Freznel (change with `HESED_MCP_MEMBER`). Its changes appear in Settings → Recent changes as "claude (for freznel)".
+To pull in MoneyWiz, type `/mcp__hesed__sync_moneywiz` in a Claude Code session on the Mac that also has the MoneyWiz connector ([details](docs/moneywiz-sync.md)).
 
-Tools: `get_reference`, `get_day`, `get_calendar`, `log_activity`, `update_activity`, `delete_activity`, `log_expense`, `log_income`, `update_transaction`, `delete_transaction`, `get_month_summary`, `list_month_transactions`, `set_budget`, `list_goals`, `create_goal`, `add_savings`.
+Then ask things like "what did October leave unspent?", "sweep the groceries leftover into the Family trip", "am I on pace for the emergency fund?", or "log that we had dinner at Festival Mall tonight, ₱2,350". Locally the agent acts as Freznel (change with `HESED_MCP_MEMBER`). Its changes appear in Settings → Recent changes as "claude (for freznel)".
+
+Tools: budgets and savings: `import_moneywiz_budgets`, `import_moneywiz_transactions`, `get_budget_month`, `get_leftovers`, `sweep_leftover`, `undo_sweep`, `list_goals`, `create_goal`, `update_goal`, `add_savings`. Day log and spending: `get_reference`, `get_day`, `get_calendar`, `log_activity`, `update_activity`, `delete_activity`, `log_expense`, `log_income`, `update_transaction`, `delete_transaction`, `get_month_summary`, `list_month_transactions`, `set_budget`. Prompt: `sync_moneywiz`.
 
 ## Put it online (Netlify)
 
@@ -62,8 +66,8 @@ Tools: `get_reference`, `get_day`, `get_calendar`, `log_activity`, `update_activ
 ## Layout
 
 - `src/` — React app. `src/pages/` are the screens; `src/scene/` draws the day (`timeline.ts` decides where everyone is, `DayScene.tsx` draws it).
-- `core/` — the rules: input checks (`schemas.ts`), activities, money, savings, change log (`audit.ts`), who may do what (`permissions.ts`, `service.ts`), PINs and tokens (`auth.ts`), local/online switch (`mode.ts`).
-- `db/` — tables (`migrations.ts`, `schema.ts`), database connection (`client.ts`: PGlite locally, Postgres online), backup.
+- `core/` — the rules: MoneyWiz import (`moneywiz.ts`), leftovers, sweeps and savings pace (`sweeps.ts`), input checks (`schemas.ts`), activities, money, savings, change log (`audit.ts`), who may do what (`permissions.ts`, `service.ts`), PINs and tokens (`auth.ts`), local/online switch (`mode.ts`).
+- `db/` — tables (`migrations.ts`, `schema.ts`), database connection (`client.ts`: PGlite locally, Postgres online), backup, demo data (`demo.ts`, `fixtures/`).
 - `netlify/functions/` — `api.ts` (web API) and `mcp.ts` (agent endpoint). Both call `core/service.ts`.
 - `mcp/tools.ts` — the agent tools.
 - `assets/` — source art; `tools/` — art scripts. See [PLAN.md](PLAN.md) for the original plan and art notes.

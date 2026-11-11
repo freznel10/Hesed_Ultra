@@ -15,7 +15,8 @@
     "art:sync": "mkdir -p public/sprites/portraits && cp assets/places/*.png assets/characters/*_front.png assets/characters/*_walk.png assets/characters/walk.json public/sprites/ && cp assets/characters/portraits/*.png public/sprites/portraits/",
     "dev:netlify": "netlify dev",
     "export": "tsx db/backup.ts export",
-    "import": "tsx db/backup.ts import"
+    "import": "tsx db/backup.ts import",
+    "demo": "PGLITE_DIR=.data/demo tsx db/demo.ts && PGLITE_DIR=.data/demo vite"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
