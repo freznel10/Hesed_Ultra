@@ -40,5 +40,6 @@ export default defineConfig({
   // Never open a second copy on another port: two copies on one database folder would clash.
   server: { port: 5173, strictPort: true },
   ssr: { external: ["@electric-sql/pglite"] },
-  test: { environment: "node" },
+  // each test opens fresh in-memory Postgres databases; allow for that when files run in parallel
+  test: { environment: "node", testTimeout: 30_000 },
 } as never);
