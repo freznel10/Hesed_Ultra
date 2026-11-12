@@ -25,6 +25,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/freznel10/Hesed_Ultra/claude
 npm run dev        # open http://localhost:5173
 ```
 
+Or double-click **Open Hesed Ultra.command** in the project folder.
+
 Data is stored in `.data/pglite` inside the project folder (not committed to git). On your own computer nobody needs a PIN: pick who you are on the first screen.
 
 | Command | What it does |
@@ -47,7 +49,7 @@ While the app is running:
 claude mcp add --transport http hesed http://localhost:5173/mcp
 ```
 
-To pull in MoneyWiz, use the Claude desktop app, where MoneyWiz's connector lives. Add Hesed Ultra to it through `mcp/bridge.mjs`, then ask "Sync MoneyWiz into Hesed Ultra for the last 12 months" ([setup](docs/moneywiz-sync.md)).
+To pull in MoneyWiz, use the Claude desktop app, where MoneyWiz's connector lives. Run `npm run setup` once and restart the desktop app, then ask "Sync MoneyWiz into Hesed Ultra for the last 12 months" ([details](docs/moneywiz-sync.md)).
 
 Then ask things like "what did October leave unspent?", "sweep the groceries leftover into the Family trip", "am I on pace for the emergency fund?", or "log that we had dinner at Festival Mall tonight, ₱2,350". Locally the agent acts as Freznel (change with `HESED_MCP_MEMBER`). Its changes appear in Settings → Recent changes as "claude (for freznel)".
 

@@ -44,4 +44,4 @@ console.log(`  config: ${configPath}`);
 console.log(`  node:   ${process.execPath}`);
 console.log(`  bridge: ${bridge}`);
 console.log(`Other entries kept: ${Object.keys(config.mcpServers).filter((k) => k !== "hesed").join(", ") || "(none)"}`);
-console.log("\nNext: quit the Claude desktop app with Cmd+Q, open it again, and keep `npm run dev` running.");
+console.log("\nNext: quit the Claude desktop app with Cmd+Q and open it again. That's all: Claude starts Hesed Ultra by itself when it needs it.");

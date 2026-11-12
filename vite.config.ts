@@ -37,6 +37,8 @@ function localApi(): Plugin {
 
 export default defineConfig({
   plugins: [react(), localApi()],
+  // Never open a second copy on another port: two copies on one database folder would clash.
+  server: { port: 5173, strictPort: true },
   ssr: { external: ["@electric-sql/pglite"] },
   test: { environment: "node" },
 } as never);

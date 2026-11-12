@@ -6,34 +6,32 @@ The copying is done by Claude on your Mac, because only the Mac can reach MoneyW
 
 ## One-time setup (on the Mac)
 
-MoneyWiz's connector is installed in the **Claude desktop app**, so the sync runs there. Hesed Ultra is added to the desktop app alongside it.
+MoneyWiz's connector lives in the **Claude desktop app**, so the sync runs there. In Terminal:
 
-1. Start Hesed Ultra and leave it running: `npm run dev` in the project folder.
-2. In a second Terminal window, in the project folder, run:
-   ```bash
-   npm run desktop:add
-   ```
-   This adds Hesed Ultra to the Claude desktop app's config file (`~/Library/Application Support/Claude/claude_desktop_config.json`). It keeps everything already there, saves a backup first, and fills in your Node path for you. Running it again is harmless.
-3. Quit the Claude desktop app completely (Cmd+Q) and open it again. In a new chat, the tools menu should list both **hesed** and **MoneyWiz**.
-
-You can also edit that file by hand, if your desktop app shows **Settings → Developer → Edit Config**. Add this inside `"mcpServers"`, with the path from `which node`:
-```json
-"hesed": { "command": "/opt/homebrew/bin/node", "args": ["/Volumes/T7 Shield/Projects/Hesed_Ultra/mcp/bridge.mjs"] }
+```bash
+cd "/Volumes/T7 Shield/Projects/Hesed_Ultra"
+git pull && npm run setup
 ```
 
-`mcp/bridge.mjs` passes messages between the desktop app and the running Hesed Ultra at `http://localhost:5173/mcp`. If the app isn't running, Claude gets the message "Start it with npm run dev".
+Then quit the Claude desktop app with **Cmd+Q** and open it again. That's all.
+
+`npm run setup` installs what the app needs and adds Hesed Ultra to the desktop app's config file (`~/Library/Application Support/Claude/claude_desktop_config.json`). It keeps everything already there and saves a backup first. Running it again is harmless.
+
+You don't need to start Hesed Ultra yourself. When Claude needs it, `mcp/bridge.mjs` starts it in the background and stops it when the desktop app closes.
 
 ## Each sync
 
-1. Make sure Hesed Ultra (`npm run dev`) and MoneyWiz are both open.
-2. In a new chat in the Claude desktop app, ask:
-   > Sync MoneyWiz into Hesed Ultra for the last 12 months.
+With MoneyWiz open, ask in a new chat in the Claude desktop app:
 
-   Claude calls `get_sync_instructions` on Hesed Ultra, then follows the steps: it reads each month's budgets and transactions from MoneyWiz, one call at a time, and passes them over unchanged. At the end it lists what was created or updated and which leftovers are ready to sweep.
+> Sync MoneyWiz into Hesed Ultra for the last 12 months.
+
+Claude reads each month's budgets and transactions from MoneyWiz, one call at a time, and imports them. At the end it lists the leftovers ready to sweep.
+
+To see the result, double-click **Open Hesed Ultra.command** in the project folder. It opens the app in your browser, or just opens the page if Claude already started it.
 
 Syncing again is always safe. Months already synced are updated to match MoneyWiz, and transactions are matched by their MoneyWiz ID, so nothing is duplicated.
 
-**Claude Code instead of the desktop app:** this only works if MoneyWiz also offers a Claude Code connection (check MoneyWiz → Preferences). If it does, add Hesed Ultra with `claude mcp add --transport http hesed http://localhost:5173/mcp` and run `/mcp__hesed__sync_moneywiz 12`.
+**Claude Code instead of the desktop app:** this only works if MoneyWiz also offers a Claude Code connection. If it does, add Hesed Ultra with `claude mcp add --transport http hesed http://localhost:5173/mcp` (with the app running) and run `/mcp__hesed__sync_moneywiz 12`.
 
 ## What gets copied
 
@@ -70,7 +68,8 @@ This starts the app on a separate demo database (`.data/demo`) with made-up budg
 
 - **"Open MoneyWiz and ask again"**: MoneyWiz is closed. Open it and run the sync again.
 - **No MoneyWiz tools in Claude Code**: MoneyWiz is connected to the desktop app, not Claude Code. Run the sync from the desktop app as described above.
-- **No hesed tools in the desktop app**: check the config file is valid JSON, the Node path is right (`which node`), and you fully quit and reopened the app. Logs are in `~/Library/Logs/Claude/mcp-server-hesed.log`.
+- **No hesed tools in the desktop app**: run `npm run setup` again, then fully quit (Cmd+Q) and reopen the app. Logs are in `~/Library/Logs/Claude/mcp-server-hesed.log`, and the app's own output is in `.data/server.log`.
+- **"Port 5173 is already in use"** when starting it yourself: it's already running (Claude probably started it). Just open http://localhost:5173.
 - **Empty results**: MoneyWiz calls were sent in parallel. Ask Claude to redo them one at a time; the sync prompt already says so.
 - **"Only parents can import from MoneyWiz"**: the agent is acting as a child account. Locally it acts as Freznel unless `HESED_MCP_MEMBER` says otherwise.
 - **A field or query is rejected**: the MoneyWiz connector may have changed. `docs/moneywiz-mcp-output-reference.md` records the shapes this was built against (contract version 0.9).
