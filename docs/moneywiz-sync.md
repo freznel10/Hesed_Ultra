@@ -25,7 +25,11 @@ With MoneyWiz open, ask in a new chat in the Claude desktop app:
 
 > Sync MoneyWiz into Hesed Ultra for the last 12 months.
 
-Claude reads each month's budgets and transactions from MoneyWiz, one call at a time, and imports them. At the end it lists the leftovers ready to sweep.
+or, for everything MoneyWiz has:
+
+> Sync MoneyWiz into Hesed Ultra for all time.
+
+Claude reads each month's budgets and transactions from MoneyWiz, one call at a time, a calendar year per request, and imports them. Years before your MoneyWiz data starts just come back empty. At the end it lists the leftovers ready to sweep.
 
 To see the result, double-click **Open Hesed Ultra.command** in the project folder. It opens the app in your browser, or just opens the page if Claude already started it.
 

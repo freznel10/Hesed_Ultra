@@ -127,46 +127,67 @@ export function buildMcpServer(svc: Service) {
 
   // Same text as the sync_moneywiz prompt, as a tool: apps that do not show MCP prompts
   // (or a plain "sync MoneyWiz" request) can fetch the steps this way.
-  tool("get_sync_instructions", "Step-by-step instructions to copy MoneyWiz budgets and transactions into Hesed Ultra. Call this when asked to sync MoneyWiz, then follow the steps exactly using the MoneyWiz tools.", {
-    months: z.number().int().min(1).max(24).optional().describe("How many months back, including this one (default 3)"),
-  }, async (a) => ({ instructions: syncInstructions(a.months ?? 3) }), true);
+  tool("get_sync_instructions", "Step-by-step instructions to copy MoneyWiz budgets and transactions into Hesed Ultra. Call this when asked to sync MoneyWiz, then follow the steps exactly using the MoneyWiz tools. For \"all time\", pass from: \"2010-01\" (earlier ranges just come back empty).", {
+    months: z.number().int().min(1).max(600).optional().describe("How many months back, including this one (default 3)"),
+    from: z.string().optional().describe("First month to sync, YYYY-MM. Overrides months"),
+  }, async (a) => ({ instructions: syncInstructions(a.from ?? a.months ?? 3) }), true);
 
   server.registerPrompt(
     "sync_moneywiz",
     {
       title: "Sync from MoneyWiz",
       description: "Copy budgets and transactions from MoneyWiz (on this Mac) into Hesed Ultra.",
-      argsSchema: { months: z.string().optional().describe("How many months back, including this one (default 3)") },
+      argsSchema: { months: z.string().optional().describe("How many months back including this one (default 3), or a first month as YYYY-MM, or \"all\"") },
     },
-    ({ months }) => ({ messages: [{ role: "user" as const, content: { type: "text" as const, text: syncInstructions(Number(months) || 3) } }] }),
+    ({ months }) => {
+      const arg = (months ?? "").trim();
+      const from = arg === "all" ? "2010-01" : /^\d{4}-\d{2}$/.test(arg) ? arg : Number(arg) || 3;
+      return { messages: [{ role: "user" as const, content: { type: "text" as const, text: syncInstructions(from) } }] };
+    },
   );
 
   return server;
 }
 
-/** Step-by-step instructions for an agent that has both the MoneyWiz and Hesed Ultra tools. */
-export function syncInstructions(months = 3, today = new Date()) {
-  const ym = (offset: number) => {
-    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-  };
-  // Manila midnight on the 1st, in UTC, is 16:00Z on the last day of the previous month.
-  const bound = (m: string) => {
-    const [y, mo] = m.split("-").map(Number);
-    return new Date(Date.UTC(y, mo - 1, 1) - 8 * 3600_000).toISOString().replace(".000Z", "Z");
-  };
-  const list = Array.from({ length: months }, (_, i) => ym(i - months + 1));
-  const ranges = list.map((m) => `- ${m}: start ${bound(m)}, end ${bound(ym(list.indexOf(m) - months + 2))}`).join("\n");
-  return `Sync MoneyWiz into Hesed Ultra for these months (Manila time; end is exclusive):
-${ranges}
+/** "2026-11" + n months → "YYYY-MM". */
+function shiftMonth(ym: string, n: number) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+/** Manila midnight on the 1st of a month, as the UTC instant MoneyWiz expects. */
+function manilaStart(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1) - 8 * 3600_000).toISOString().replace(".000Z", "Z");
+}
+
+/**
+ * Step-by-step instructions for an agent that has both the MoneyWiz and Hesed Ultra tools.
+ * Covers `from` (a month, YYYY-MM) through the current month. A number means "this many
+ * months back, including this one". Work is split into calendar-year chunks so long
+ * histories need few calls.
+ */
+export function syncInstructions(from: number | string = 3, today = new Date()) {
+  const thisMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit" }).format(today).slice(0, 7);
+  const first = typeof from === "number" ? shiftMonth(thisMonth, -(Math.max(1, from) - 1)) : from;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(first) || first > thisMonth) throw new InputError(`"from" must be a month (YYYY-MM) no later than ${thisMonth}`);
+  const chunks: string[] = [];
+  for (let start = first; start <= thisMonth; ) {
+    const yearEnd = `${start.slice(0, 4)}-12`;
+    const last = yearEnd < thisMonth ? yearEnd : thisMonth;
+    chunks.push(`- ${start} to ${last}: start ${manilaStart(start)}, end ${manilaStart(shiftMonth(last, 1))}`);
+    start = shiftMonth(last, 1);
+  }
+  return `Sync MoneyWiz into Hesed Ultra from ${first} through ${thisMonth}, in these ranges (Manila time; end is exclusive):
+${chunks.join("\n")}
 
 Rules: MoneyWiz must be open on this Mac. Call MoneyWiz tools ONE AT A TIME, never in parallel (parallel calls come back empty). Pass MoneyWiz output to the Hesed Ultra tools unchanged; do not convert amounts or dates yourself.
 
-1. Call moneywiz_open_context. Keep the contextID.
-2. Budgets, for each month above: call moneywiz_read_financial_data with request {domain: "budgets", accountIDs: null, start, end, includeArchived: false, limit: 100, offset: 0}. If data.nextOffset is set, call again with that offset. Pass every data.records array to hesed import_moneywiz_budgets.
-3. Transactions, for each month above: call moneywiz_list_transactions with limit 100 and query {start, end, timeZone: "Asia/Manila", filter: {operation: "all", field: null, values: [], children: []}}. Pass evidence.rows and evidence.names to hesed import_moneywiz_transactions. While evidence.coverage is "more_rows", call moneywiz_inspect_result with resultID = evidence.resultID, groupID null, cursor = the nextCursor, limit 100, and import those rows and names too.
+1. Call moneywiz_open_context. Keep the contextID. (Contexts expire after 30 idle minutes; if a call says the context expired, open a new one and carry on.)
+2. Budgets, for each range above: call moneywiz_read_financial_data with request {domain: "budgets", accountIDs: null, start, end, includeArchived: true, limit: 100, offset: 0}. While data.nextOffset is set, call again with that offset. Pass every data.records array to hesed import_moneywiz_budgets. Its reply lists the months it received. If a range spanning several months only returned one month, repeat that range one month at a time (start/end on the 1st of each month at 16:00:00Z of the previous day).
+3. Transactions, for each range above: call moneywiz_list_transactions with limit 100 and query {start, end, timeZone: "Asia/Manila", filter: {operation: "all", field: null, values: [], children: []}}. Pass evidence.rows and evidence.names to hesed import_moneywiz_transactions. While evidence.coverage is "more_rows", call moneywiz_inspect_result with resultID = evidence.resultID, groupID null, cursor = the nextCursor, limit 100, and import those rows and names too.
 4. Call moneywiz_release_context.
-5. Call hesed get_leftovers and report, in pesos: each month synced (budgets created/updated, transactions created/updated), then the leftovers waiting to be swept. Do not sweep anything unless the user asks.
+5. Call hesed get_leftovers and report, in pesos: per range, budgets created/updated and transactions created/updated; then the leftovers waiting to be swept. Do not sweep anything unless the user asks.
 
-If a MoneyWiz call fails or a query shape is rejected, stop and show the exact error rather than guessing.`;
+Ranges before MoneyWiz has any data simply return nothing; that is fine. If a MoneyWiz call fails or a query shape is rejected, stop and show the exact error rather than guessing.`;
 }

@@ -94,10 +94,20 @@ describe("MCP tools", () => {
     expect(prompts.map((p) => p.name)).toContain("sync_moneywiz");
     expect((await call("get_sync_instructions", { months: 2 })).data.instructions).toContain("moneywiz_open_context");
     const { syncInstructions } = await import("./tools");
-    const text = syncInstructions(2, new Date("2026-11-11T03:00:00Z"));
-    expect(text).toContain("- 2026-10: start 2026-09-30T16:00:00Z, end 2026-10-31T16:00:00Z");
-    expect(text).toContain("- 2026-11: start 2026-10-31T16:00:00Z, end 2026-11-30T16:00:00Z");
-    expect(syncInstructions(1, new Date("2026-12-15T00:00:00Z"))).toContain("- 2026-12: start 2026-11-30T16:00:00Z, end 2026-12-31T16:00:00Z");
+    const now = new Date("2026-11-11T03:00:00Z");
+    expect(syncInstructions(2, now)).toContain("- 2026-10 to 2026-11: start 2026-09-30T16:00:00Z, end 2026-11-30T16:00:00Z");
+    expect(syncInstructions(1, new Date("2026-12-15T00:00:00Z"))).toContain("- 2026-12 to 2026-12: start 2026-11-30T16:00:00Z, end 2026-12-31T16:00:00Z");
+    // all time: one chunk per calendar year, the last ending this month
+    const all = syncInstructions("2024-03", now);
+    expect(all).toContain("- 2024-03 to 2024-12: start 2024-02-29T16:00:00Z, end 2024-12-31T16:00:00Z");
+    expect(all).toContain("- 2025-01 to 2025-12: start 2024-12-31T16:00:00Z, end 2025-12-31T16:00:00Z");
+    expect(all).toContain("- 2026-01 to 2026-11: start 2025-12-31T16:00:00Z, end 2026-11-30T16:00:00Z");
+    expect(all.match(/^- /gm)).toHaveLength(3);
+    // 12 months back crosses a year boundary into two chunks
+    expect(syncInstructions(12, now).match(/^- /gm)).toHaveLength(2);
+    expect(() => syncInstructions("2027-01", now)).toThrow(/no later than/);
+    const viaTool = await call("get_sync_instructions", { from: "2010-01" });
+    expect(viaTool.data.instructions).toContain("- 2010-01 to 2010-12");
   });
 
   it("applies a child's limits to an agent acting for a child", async () => {
