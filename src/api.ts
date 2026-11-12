@@ -43,6 +43,15 @@ export type BudgetOverview = {
   history: { month: string; sweptCents: number }[];
   lastSync: string | null;
 };
+export type DateOrder = "MDY" | "DMY" | "YMD";
+export type CsvSkipped = { noDateOrAmount: number; transfers: number; otherCurrency: number; badDate: number; zero: number };
+export type CsvPreview = {
+  delimiter: string; columns: Record<string, string>; dateOrder: DateOrder; dateOrderSure: boolean; rows: number; count: number;
+  skipped: CsvSkipped; from: string | null; to: string | null; incomeCents: number; expenseCents: number; categories: string[];
+  sample: { date: string; kind: "expense" | "income"; amountCents: number; categoryPath: string; payee: string; note: string }[];
+};
+export type CsvResult = { count: number; from: string | null; to: string | null; skipped: CsvSkipped; created: number; updated: number; unchanged: number };
+export type BudgetPlan = { id: number; name: string; monthlyCents: number; categories: string[]; startMonth: string };
 export type GoalUpdate = { name?: string; targetCents?: number; targetDate?: string | null; monthlyCents?: number | null; archived?: boolean };
 export type Change = { id: number; at: string; actor: string; source: string; entity: string; entityId: number; action: string };
 export type Token = { id: number; name: string; member: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
@@ -98,6 +107,12 @@ export const api = {
   budget: (month: string) => call<BudgetOverview>("GET", `/budget/${month}`),
   sweep: (budgetPeriodId: number, goalId: number, amountCents?: number, note = "") => call("POST", "/sweeps", { budgetPeriodId, goalId, amountCents, note }),
   undoSweep: (id: number) => call("DELETE", `/sweeps/${id}`),
+  csvPreview: (text: string, dateOrder?: DateOrder) => call<CsvPreview>("POST", "/import/csv", { text, dateOrder }),
+  csvImport: (text: string, dateOrder?: DateOrder) => call<CsvResult>("POST", "/import/csv", { text, dateOrder, commit: true }),
+  budgetPlans: () => call<{ plans: BudgetPlan[]; categories: string[] }>("GET", "/budget-plans"),
+  createPlan: (p: Omit<BudgetPlan, "id">) => call<BudgetPlan>("POST", "/budget-plans", p),
+  updatePlan: (id: number, p: Partial<Omit<BudgetPlan, "id">>) => call<BudgetPlan>("PUT", `/budget-plans/${id}`, p),
+  removePlan: (id: number) => call("DELETE", `/budget-plans/${id}`),
   leaveAlone: (budgetPeriodId: number, value: boolean) => call("PUT", `/budget-periods/${budgetPeriodId}/leave-alone`, { value }),
   addSavings: (goalId: number, date: string, amountCents: number, note = "") => call("POST", "/savings", { goalId, date, amountCents, note }),
   changes: () => call<Change[]>("GET", "/changes"),

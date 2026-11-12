@@ -160,3 +160,18 @@ export const sweeps = pgTable("sweeps", {
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
+
+/**
+ * A budget kept in this app (for CSV imports, which carry no budgets): a monthly amount
+ * for a set of categories. Each month it is turned into a budget_periods row (source "plan").
+ */
+export const budgetPlans = pgTable("budget_plans", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  monthlyCents: integer("monthly_cents").notNull(),
+  /** Category names, e.g. "Food & Dining > Groceries". Subcategories are included. */
+  categories: jsonb("categories").$type<string[]>().notNull().default([]),
+  startMonth: text("start_month").notNull(),
+  archived: boolean("archived").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});

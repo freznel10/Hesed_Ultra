@@ -5,7 +5,9 @@ import * as activities from "./activities";
 import { recentChanges } from "./audit";
 import type { Ctx } from "./context";
 import * as finance from "./finance";
+import * as csv from "./csv";
 import * as mw from "./moneywiz";
+import * as plans from "./plans";
 import * as sw from "./sweeps";
 import { can, type User } from "./permissions";
 import type { ActivityInput, BudgetInput, GoalInput, SavingsEntryInput, TransactionInput } from "./schemas";
@@ -120,19 +122,23 @@ export function service(db: Db, user: User, source: Ctx["source"]) {
     // ---- MoneyWiz budgets and sweeping (parents only)
     async budgetMonth(month: string) {
       can.parentOnly(user, "see the family budget");
+      await plans.refreshPlanPeriods(db);
       return sw.budgetMonth(db, month);
     },
     async budgetOverview(month: string) {
       can.parentOnly(user, "see the family budget");
+      await plans.refreshPlanPeriods(db);
       const [current, pending, history, lastSync] = await Promise.all([sw.budgetMonth(db, month), sw.pendingLeftovers(db), sw.sweepHistory(db), mw.lastSync(db)]);
       return { current, pending, history, lastSync };
     },
     async pendingLeftovers() {
       can.parentOnly(user, "see the family budget");
+      await plans.refreshPlanPeriods(db);
       return sw.pendingLeftovers(db);
     },
     async sweep(input: sw.SweepInput) {
       can.parentOnly(user, "sweep leftovers");
+      await plans.refreshPlanPeriods(db);
       return sw.sweep(ctx, input);
     },
     async undoSweep(id: number) {
@@ -149,7 +155,40 @@ export function service(db: Db, user: User, source: Ctx["source"]) {
     },
     async importMoneyWizTransactions(rows: mw.MoneyWizRow[], names: mw.MoneyWizNames) {
       can.parentOnly(user, "import from MoneyWiz");
-      return mw.importTransactions({ ...ctx, source: "import" }, rows, names);
+      const result = await mw.importTransactions({ ...ctx, source: "import" }, rows, names);
+      await plans.refreshPlanPeriods(db);
+      return result;
+    },
+
+    // ---- CSV upload and in-app budgets (parents only)
+    /** Read a CSV without saving anything: what was found, and a few sample rows. */
+    async csvPreview(text: string, dateOrder?: csv.DateOrder) {
+      can.parentOnly(user, "import spending");
+      const { transactions, ...rest } = csv.readCsv(text, { dateOrder });
+      return { ...rest, count: transactions.length, sample: transactions.slice(0, 8) };
+    },
+    async csvImport(text: string, dateOrder?: csv.DateOrder) {
+      can.parentOnly(user, "import spending");
+      const read = csv.readCsv(text, { dateOrder });
+      const saved = await mw.saveTransactions({ ...ctx, source: "import" }, read.transactions, "csv");
+      await plans.refreshPlanPeriods(db);
+      return { count: read.transactions.length, from: read.from, to: read.to, skipped: read.skipped, ...saved };
+    },
+    async budgetPlans() {
+      can.parentOnly(user, "see the family budget");
+      return { plans: await plans.listPlans(db), categories: await plans.knownCategories(db) };
+    },
+    async createPlan(input: plans.PlanInput) {
+      can.parentOnly(user, "change budgets");
+      return plans.createPlan(ctx, input);
+    },
+    async updatePlan(id: number, input: Partial<plans.PlanInput>) {
+      can.parentOnly(user, "change budgets");
+      return plans.updatePlan(ctx, id, input);
+    },
+    async removePlan(id: number) {
+      can.parentOnly(user, "change budgets");
+      return plans.removePlan(ctx, id);
     },
 
     async changes(limit?: number) {

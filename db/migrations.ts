@@ -165,4 +165,18 @@ export const MIGRATIONS: { id: string; sql: string }[] = [
       CREATE UNIQUE INDEX transactions_external_id ON transactions(external_id) WHERE external_id IS NOT NULL;
     `,
   },
+  {
+    id: "0005_budget_plans",
+    sql: `
+      CREATE TABLE budget_plans (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        monthly_cents INTEGER NOT NULL CHECK (monthly_cents > 0),
+        categories JSONB NOT NULL DEFAULT '[]',
+        start_month TEXT NOT NULL CHECK (start_month ~ '^[0-9]{4}-[0-9]{2}$'),
+        archived BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];

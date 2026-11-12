@@ -1,4 +1,20 @@
-# Syncing from MoneyWiz
+# Getting MoneyWiz data in
+
+There are two ways. **Uploading a CSV is the simple one**; syncing through Claude also brings MoneyWiz's budgets in automatically.
+
+## Option A: upload a CSV (no setup)
+
+1. In MoneyWiz on the Mac: **File → Export → CSV**. Pick the accounts and the date range (all time is fine) and save the file.
+2. In Hesed Ultra, on the **Budget** tab, press **⬆ Upload CSV** and choose the file. Check the preview: the number of transactions, the date range, and that the dates read correctly (switch the date order if they don't). Then press **Import**.
+3. The export has no budgets, so add them once under **✎ Monthly budgets**: a name, the monthly amount (as set in MoneyWiz), and the categories it covers. Ticking a parent such as "Food & Dining" covers all its subcategories. "Track from" is the first month to check for leftovers.
+
+Each month, the app adds up the spending in each budget's categories, minus refunds, and shows what's left. Finished months with money left appear under **Ready to sweep**.
+
+To update, export again and upload. Overlapping exports are fine: transactions already in the app are recognised and skipped. Skipped on purpose: transfers between your own accounts, amounts in other currencies, and the account header rows MoneyWiz puts in the file.
+
+Use one option or the other for transactions, not both: the two routes identify transactions differently, so using both would count spending twice.
+
+## Option B: sync through Claude
 
 MoneyWiz stays where you record spending and set budgets. Hesed Ultra copies the budgets and transactions in, then shows what each month left unspent so you can sweep it into savings goals.
 

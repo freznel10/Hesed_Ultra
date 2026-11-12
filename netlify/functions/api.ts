@@ -67,6 +67,12 @@ const routes: [method: string, pattern: RegExp, handler: Handler][] = [
   ["POST", /^\/sweeps$/, ({ svc, body }) => svc.sweep(body)],
   ["DELETE", /^\/sweeps\/(\d+)$/, ({ svc, params }) => svc.undoSweep(num(params[0]))],
   ["PUT", /^\/budget-periods\/(\d+)\/leave-alone$/, ({ svc, body, params }) => svc.leaveAlone(num(params[0]), Boolean(body?.value))],
+  ["POST", /^\/import\/csv$/, ({ svc, body }) =>
+    body?.commit ? svc.csvImport(String(body?.text ?? ""), body?.dateOrder) : svc.csvPreview(String(body?.text ?? ""), body?.dateOrder)],
+  ["GET", /^\/budget-plans$/, ({ svc }) => svc.budgetPlans()],
+  ["POST", /^\/budget-plans$/, ({ svc, body }) => svc.createPlan(body)],
+  ["PUT", /^\/budget-plans\/(\d+)$/, ({ svc, body, params }) => svc.updatePlan(num(params[0]), body)],
+  ["DELETE", /^\/budget-plans\/(\d+)$/, ({ svc, params }) => svc.removePlan(num(params[0]))],
   ["POST", /^\/import\/moneywiz$/, async ({ svc, body }) => ({
     budgets: Array.isArray(body?.budgets) ? await svc.importMoneyWizBudgets(body.budgets) : null,
     transactions: Array.isArray(body?.rows) ? await svc.importMoneyWizTransactions(body.rows, body.names ?? {}) : null,

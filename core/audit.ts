@@ -3,7 +3,7 @@ import type { Db } from "../db/client";
 import * as schema from "../db/schema";
 import type { Ctx } from "./context";
 
-export type Entity = "activity" | "transaction" | "budget" | "savings_goal" | "savings_entry" | "budget_period" | "sweep" | "import";
+export type Entity = "activity" | "transaction" | "budget" | "savings_goal" | "savings_entry" | "budget_period" | "budget_plan" | "sweep" | "import";
 
 /** Record one change. Call it inside the same database transaction as the change itself. */
 export async function record(

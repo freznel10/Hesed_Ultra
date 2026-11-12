@@ -177,6 +177,15 @@ export function parseTransaction(row: MoneyWizRow, names: MoneyWizNames = {}): P
 
 export async function importTransactions(ctx: Ctx, rows: MoneyWizRow[], names: MoneyWizNames = {}) {
   const parsed = rows.flatMap((r) => parseTransaction(r, names));
+  const result = await saveTransactions(ctx, parsed, "moneywiz_transactions");
+  return { rows: rows.length, imported: parsed.length, ...result, skipped: rows.length - new Set(parsed.map((p) => p.externalId.split("#")[0])).size };
+}
+
+/**
+ * Save parsed transactions: create new ones, update changed ones (matched by externalId),
+ * and create any missing categories. Shared by the MoneyWiz MCP import and CSV upload.
+ */
+export async function saveTransactions(ctx: Ctx, parsed: ParsedTransaction[], kindLabel: string) {
   let created = 0;
   let updated = 0;
   let unchanged = 0;
@@ -191,7 +200,10 @@ export async function importTransactions(ctx: Ctx, rows: MoneyWizRow[], names: M
     const catId = (t: ParsedTransaction) => cats.find((c) => c.key === (t.kind === "income" ? `${categoryKey(t.categoryPath)}:in` : categoryKey(t.categoryPath)))!.id;
 
     const ids = parsed.map((t) => t.externalId);
-    const existing = ids.length ? await tx.select().from(schema.transactions).where(inArray(schema.transactions.externalId, ids)) : [];
+    const existing: (typeof schema.transactions.$inferSelect)[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      existing.push(...(await tx.select().from(schema.transactions).where(inArray(schema.transactions.externalId, ids.slice(i, i + 500)))));
+    }
     for (const t of parsed) {
       const values = { date: t.date, kind: t.kind, amountCents: t.amountCents, categoryId: catId(t), payee: t.payee.slice(0, 120), note: t.note };
       const before = existing.find((e) => e.externalId === t.externalId);
@@ -203,9 +215,9 @@ export async function importTransactions(ctx: Ctx, rows: MoneyWizRow[], names: M
         updated++;
       } else unchanged++;
     }
-    if (parsed.length) await record(tx, ctx, "import", 0, "create", null, { kind: "moneywiz_transactions", created, updated, unchanged });
+    if (parsed.length) await record(tx, ctx, "import", 0, "create", null, { kind: kindLabel, created, updated, unchanged });
   });
-  return { rows: rows.length, imported: parsed.length, created, updated, unchanged, skipped: rows.length - new Set(parsed.map((p) => p.externalId.split("#")[0])).size };
+  return { created, updated, unchanged };
 }
 
 /** When MoneyWiz was last synced, for the status line. */

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type BudgetLine, type BudgetOverview, type Goal } from "../api";
 import type { AppContext } from "../App";
 import { addMonths, formatPHP, niceMonth, parsePHP, today } from "../util";
+import { BudgetPlans, CsvUpload } from "./BudgetSetup";
 
 const STATUS = {
   ok: { icon: "●", label: "On track" },
@@ -139,6 +140,12 @@ export default function BudgetHome({ ctx }: { ctx: AppContext }) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [sweeping, setSweeping] = useState<BudgetLine | null>(null);
   const [error, setError] = useState("");
+  // On first use both setup panels open, and stay open until closed, even once data arrives.
+  const [panel, setPanel] = useState<"upload" | "plans" | "both" | null>(null);
+  const [uploads, setUploads] = useState(0);
+  useEffect(() => {
+    if (data && !data.lastSync) setPanel((p) => p ?? "both");
+  }, [data]);
 
   const load = useCallback(async () => {
     try { setData(await api.budget(month)); setGoals(await api.goals()); setError(""); } catch (e) { setError((e as Error).message); }
@@ -154,10 +161,22 @@ export default function BudgetHome({ ctx }: { ctx: AppContext }) {
       {error && <p className="error" role="alert">{error}</p>}
       {data && !data.lastSync && (
         <div className="panel">
-          <h3>No MoneyWiz data yet</h3>
-          <p>Budgets come from MoneyWiz on your Mac. Add this app to the Claude desktop app (where MoneyWiz is connected) by following <code>docs/moneywiz-sync.md</code>. Then, with this app and MoneyWiz open, ask Claude: "Sync MoneyWiz into Hesed Ultra for the last 12 months."</p>
+          <h3>Get started</h3>
+          <ol>
+            <li><b>Upload your spending:</b> export a CSV from MoneyWiz (File → Export → CSV) and upload it with the button below.</li>
+            <li><b>Add your monthly budgets</b> (the amounts you set in MoneyWiz) and which categories each one covers.</li>
+          </ol>
+          <p className="small-note">The app then shows what each month left unspent, ready to sweep into savings. (Or sync budgets straight from MoneyWiz through Claude; see docs/moneywiz-sync.md.)</p>
         </div>
       )}
+
+      <div className="row setupbar">
+        <button className={panel === "upload" || panel === "both" ? "tab on" : "tab"} onClick={() => setPanel(panel === "upload" ? null : "upload")}>⬆ Upload CSV</button>
+        <button className={panel === "plans" || panel === "both" ? "tab on" : "tab"} onClick={() => setPanel(panel === "plans" ? null : "plans")}>✎ Monthly budgets</button>
+        {panel && <button onClick={() => setPanel(null)}>Close</button>}
+      </div>
+      {(panel === "upload" || panel === "both") && <CsvUpload onImported={() => { setUploads((n) => n + 1); load(); }} />}
+      {(panel === "plans" || panel === "both") && <BudgetPlans onChange={load} refreshKey={uploads} />}
 
       {data && data.pending.totalCents > 0 && (
         <div className="sweep-hero panel">
@@ -182,7 +201,7 @@ export default function BudgetHome({ ctx }: { ctx: AppContext }) {
         <h2>{niceMonth(month)}</h2>
         <button onClick={() => setMonth(addMonths(month, 1))} aria-label="Next month">▶</button>
         {month !== today().slice(0, 7) && <button onClick={() => setMonth(today().slice(0, 7))}>This month</button>}
-        {data?.lastSync && <small className="sync">Synced from MoneyWiz {new Date(data.lastSync).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" })}</small>}
+        {data?.lastSync && <small className="sync">Updated {new Date(data.lastSync).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" })}</small>}
       </div>
 
       {cur && cur.budgets.length === 0 && data?.lastSync && <p className="empty">No MoneyWiz budgets synced for {niceMonth(month)}.</p>}

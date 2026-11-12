@@ -6,7 +6,7 @@ Our family budget and savings plan, plus our day in pixel art. Budgets come from
 
 ## What it does
 
-- **Budget** (home for parents): this month's MoneyWiz budgets as block bars (spent, over, left, swept). Once a month ends, leftovers show up under **Ready to sweep**; sweep them into a goal by hand, or leave them. See [docs/moneywiz-sync.md](docs/moneywiz-sync.md).
+- **Budget** (home for parents): upload a MoneyWiz CSV export and set monthly budgets, or sync budgets from MoneyWiz through Claude. Each budget is a block bar (spent, over, left, swept). Once a month ends, leftovers show up under **Ready to sweep**; sweep them into a goal by hand, or leave them. See [docs/moneywiz-sync.md](docs/moneywiz-sync.md).
 - **Savings:** each goal is a jar filling up, gold for money saved directly and teal for money swept from budgets, with its monthly plan and whether it is on pace for its target date.
 - **Spending:** income, spending and each category for the month (from MoneyWiz and from the app).
 - **Family day:** log what everyone did and what was spent. The scene plays the day back: the family walks between home, church, school, the office and the malls, with spending shown above the place it happened.
@@ -49,7 +49,7 @@ While the app is running:
 claude mcp add --transport http hesed http://localhost:5173/mcp
 ```
 
-To pull in MoneyWiz, use the Claude desktop app, where MoneyWiz's connector lives. Run `npm run setup` once and restart the desktop app, then ask "Sync MoneyWiz into Hesed Ultra for the last 12 months" ([details](docs/moneywiz-sync.md)).
+The simplest way to get MoneyWiz data in is a CSV export uploaded on the Budget tab. To sync through Claude instead, use the Claude desktop app, where MoneyWiz's connector lives. Run `npm run setup` once and restart the desktop app, then ask "Sync MoneyWiz into Hesed Ultra for the last 12 months" ([details](docs/moneywiz-sync.md)).
 
 Then ask things like "what did October leave unspent?", "sweep the groceries leftover into the Family trip", "am I on pace for the emergency fund?", or "log that we had dinner at Festival Mall tonight, ₱2,350". Locally the agent acts as Freznel (change with `HESED_MCP_MEMBER`). Its changes appear in Settings → Recent changes as "claude (for freznel)".
 
@@ -68,7 +68,7 @@ Tools: budgets and savings: `import_moneywiz_budgets`, `import_moneywiz_transact
 ## Layout
 
 - `src/` — React app. `src/pages/` are the screens; `src/scene/` draws the day (`timeline.ts` decides where everyone is, `DayScene.tsx` draws it).
-- `core/` — the rules: MoneyWiz import (`moneywiz.ts`), leftovers, sweeps and savings pace (`sweeps.ts`), input checks (`schemas.ts`), activities, money, savings, change log (`audit.ts`), who may do what (`permissions.ts`, `service.ts`), PINs and tokens (`auth.ts`), local/online switch (`mode.ts`).
+- `core/` — the rules: CSV reading (`csv.ts`), in-app monthly budgets (`plans.ts`), MoneyWiz import (`moneywiz.ts`), leftovers, sweeps and savings pace (`sweeps.ts`), input checks (`schemas.ts`), activities, money, savings, change log (`audit.ts`), who may do what (`permissions.ts`, `service.ts`), PINs and tokens (`auth.ts`), local/online switch (`mode.ts`).
 - `db/` — tables (`migrations.ts`, `schema.ts`), database connection (`client.ts`: PGlite locally, Postgres online), backup, demo data (`demo.ts`, `fixtures/`).
 - `netlify/functions/` — `api.ts` (web API) and `mcp.ts` (agent endpoint). Both call `core/service.ts`.
 - `mcp/tools.ts` — the agent tools.

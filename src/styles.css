@@ -163,3 +163,17 @@ button.link { border: 0; box-shadow: none; background: none; padding: 0; text-de
 .pace { border-left: 4px solid var(--line); padding: 4px 8px; }
 .pace.on_track, .pace.done { border-color: var(--ok); } .pace.behind { border-color: var(--over); }
 @media (max-width: 700px) { .hbars li { grid-template-columns: 90px 1fr 90px; } .sweep-hero { flex-direction: column; align-items: flex-start; } }
+
+/* ---- CSV upload & budget plans ---- */
+.setupbar { margin: 0 0 8px; }
+.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file { flex-direction: row; align-items: center; gap: 10px; font-weight: normal; cursor: pointer; }
+.filebtn { border: 2px solid var(--ink); padding: 6px 12px; background: var(--accent); color: #fff; box-shadow: 2px 2px 0 var(--ink); font-weight: bold; }
+.file:focus-within .filebtn { outline: 3px solid var(--accent); outline-offset: 2px; }
+.preview { border-top: 2px dotted var(--line); margin-top: 10px; padding-top: 8px; }
+.warn-text { color: #8a5d00; font-weight: bold; }
+.catlist { max-height: 240px; overflow: auto; border: 2px solid var(--ink); background: #fff; padding: 6px; margin-top: 4px; }
+.check { flex-direction: row; align-items: center; gap: 6px; font-weight: normal; margin: 2px 0; font-size: 13px; }
+.planform { border-top: 2px dotted var(--line); padding-top: 8px; margin-top: 8px; }
+.table td small { display: block; }
+.parent-path { opacity: 0.6; }
